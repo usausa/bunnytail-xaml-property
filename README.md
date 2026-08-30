@@ -2,7 +2,7 @@
 
 Property source generator for WPF, MAUI and Avalonia.
 
-## NuGet
+## 📦 NuGet
 
 | Package | Note |
 |-|-|
@@ -10,12 +10,7 @@ Property source generator for WPF, MAUI and Avalonia.
 | [![NuGet](https://img.shields.io/nuget/v/BunnyTail.XamlProperty.Maui.svg)](https://www.nuget.org/packages/BunnyTail.XamlProperty.Maui/) | `BindableProperty` for MAUI |
 | [![NuGet](https://img.shields.io/nuget/v/BunnyTail.XamlProperty.Avalonia.svg)](https://www.nuget.org/packages/BunnyTail.XamlProperty.Avalonia/) | `StyledProperty` for Avalonia |
 
-Every package uses the `BunnyTail.XamlProperty` namespace, and only one of them is referenced from a project.
-
-## Property
-
-Add the attribute to a partial property, and the property field and the property implementation are generated.
-The attribute is named after the term used by each framework.
+## ⚙️ Property
 
 ```csharp
 // WPF
@@ -43,25 +38,22 @@ public partial string? Label { get; set; }
 ```
 
 | Option | Wpf | Maui | Avalonia |
-|-|-|-|-|
-| `DefaultValue` | ○ | ○ | ○ |
-| `DefaultValueExpression` | ○ | ○ | ○ |
-| `DefaultValueMember` | ○ | ○ | ○ |
-| `Options` | ○ | - | - |
-| `DefaultBindingMode` | - | ○ | ○ |
-| `PropertyChanged` | ○ | ○ | - |
-| `PropertyChanging` | - | ○ | - |
-| `Coerce` | ○ | ○ | ○ |
-| `Validate` | ○ | ○ | ○ |
-| `Inherits` | - | - | ○ |
-| `EnableDataValidation` | - | - | ○ |
-
-A callback method can be declared in the containing type or in a base type, so an inherited method can be specified directly.
-A method that matches the callback delegate of the framework is used as a method group, so an existing callback can be specified without a change.
+|-|:-:|:-:|:-:|
+| `DefaultValue` | ✅ | ✅ | ✅ |
+| `DefaultValueExpression` | ✅ | ✅ | ✅ |
+| `DefaultValueMember` | ✅ | ✅ | ✅ |
+| `Options` | ✅ | ❌ | ❌ |
+| `DefaultBindingMode` | ❌ | ✅ | ✅ |
+| `PropertyChanged` | ✅ | ✅ | ❌ |
+| `PropertyChanging` | ❌ | ✅ | ❌ |
+| `Coerce` | ✅ | ✅ | ✅ |
+| `Validate` | ✅ | ✅ | ✅ |
+| `Inherits` | ❌ | ❌ | ✅ |
+| `EnableDataValidation` | ❌ | ❌ | ✅ |
 
 Avalonia does not have `PropertyChanged`, because it handles property change by overriding `OnPropertyChanged`.
 
-## AttachedProperty
+## 🔗 AttachedProperty
 
 Add `[AttachedProperty]` to a `static partial` getter, and the property field and the accessor implementations are generated.
 A setter is generated when a matching `Set` method is declared.
@@ -76,16 +68,11 @@ public static partial class Focus
 }
 ```
 
-The property name is the getter name without the `Get` prefix, the value type is the return type,
-and the target type is the parameter type.
+## ⚠️ Limitation
 
-## Note
-
-Requires C# 13 or later, because partial properties are used.
-
-A generated property is not visible to another source generator in the same project.
-On MAUI, a property referenced from XAML can not be generated when `MauiXamlInflator` is `SourceGen`.
-
-## Diagnostics
-
-See [Diagnostics.md](Diagnostics.md).
+| Platform | XAML compilation | Generated property |
+|-|-|:-:|
+| WPF | Markup compiler, after the assembly is built | ✅ |
+| Avalonia | XamlIl, after the assembly is built | ✅ |
+| MAUI (default) | XamlC, after the assembly is built | ✅ |
+| MAUI (`MauiXamlInflator` is `SourceGen`) | Source generator | ❌ |
