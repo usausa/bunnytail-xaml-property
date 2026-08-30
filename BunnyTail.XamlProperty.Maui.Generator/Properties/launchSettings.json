@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BunnyTail.XamlProperty.Maui.Generator": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\BunnyTail.XamlProperty.Maui.Tests\\BunnyTail.XamlProperty.Maui.Tests.csproj"
+    }
+  }
+}

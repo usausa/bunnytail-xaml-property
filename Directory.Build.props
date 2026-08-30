@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Version>0.5.0</Version>
+    <Version>0.1.0</Version>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>
@@ -29,7 +29,7 @@
     <Authors>machi_pon</Authors>
     <Copyright>Copyright (c) 2026 machi_pon</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/usausa/bunnytail-dependency-injection</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/usausa/bunnytail-xaml-property</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 

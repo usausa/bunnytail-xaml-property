@@ -1,0 +1,455 @@
+namespace BunnyTail.XamlProperty.Generator;
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+
+using BunnyTail.XamlProperty.Generator.Models;
+
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+using SourceGenerateHelper;
+
+[Generator]
+public sealed class AttachedPropertyGenerator : IIncrementalGenerator
+{
+    private const string AttributeName = "BunnyTail.XamlProperty.AttachedPropertyAttribute";
+
+    private const string BindableObjectTypeName = "Microsoft.Maui.Controls.BindableObject";
+
+    private const string BindablePropertyTypeName = "global::Microsoft.Maui.Controls.BindableProperty";
+
+    private const string GetPrefix = "Get";
+    private const string SetPrefix = "Set";
+
+    private static readonly SymbolDisplayFormat TypeDisplayFormat = SymbolDisplayFormat.FullyQualifiedFormat
+        .WithMiscellaneousOptions(SymbolDisplayFormat.FullyQualifiedFormat.MiscellaneousOptions | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
+
+    // ------------------------------------------------------------
+    // Initialize
+    // ------------------------------------------------------------
+
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var propertyProvider = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                AttributeName,
+                static (syntax, _) => IsMethodSyntax(syntax),
+                static (context, _) => GetAttachedPropertyModel(context))
+            .Collect();
+
+        context.RegisterSourceOutput(
+            propertyProvider,
+            static (context, properties) => ReportDiagnostics(context, properties));
+
+        var typeProvider = propertyProvider.SelectMany(static (properties, _) => SelectTypeModel(properties));
+
+        context.RegisterImplementationSourceOutput(
+            typeProvider,
+            static (context, type) => Execute(context, type));
+    }
+
+    private static ImmutableArray<AttachedTypeModel> SelectTypeModel(ImmutableArray<Result<AttachedPropertyModel>> properties) =>
+        [.. properties
+            .SelectValue()
+            .GroupBy(static x => new { x.Namespace, x.ClassName, x.ContainingTypes })
+            .Select(static x => new AttachedTypeModel(
+                x.Key.Namespace,
+                x.Key.ClassName,
+                x.Key.ContainingTypes,
+                new EquatableArray<AttachedPropertyModel>(x)))];
+
+    // ------------------------------------------------------------
+    // Parser
+    // ------------------------------------------------------------
+
+    private static bool IsMethodSyntax(SyntaxNode syntax) =>
+        syntax is MethodDeclarationSyntax;
+
+    private static Result<AttachedPropertyModel> GetAttachedPropertyModel(GeneratorAttributeSyntaxContext context)
+    {
+        var syntax = (MethodDeclarationSyntax)context.TargetNode;
+        if (context.TargetSymbol is not IMethodSymbol symbol)
+        {
+            return Results.Errors<AttachedPropertyModel>();
+        }
+
+        var location = syntax.GetLocation();
+
+        // Validate accessor definition
+        if (!symbol.IsStatic ||
+            !symbol.IsPartialDefinition ||
+            symbol.IsGenericMethod ||
+            symbol.ReturnsVoid ||
+            (symbol.Parameters.Length != 1) ||
+            !symbol.Name.StartsWith(GetPrefix, StringComparison.Ordinal) ||
+            (symbol.Name.Length == GetPrefix.Length))
+        {
+            return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.InvalidAccessorDefinition, location, symbol.Name));
+        }
+
+        // Validate containing type
+        for (var typeSyntax = syntax.Parent as TypeDeclarationSyntax; typeSyntax is not null; typeSyntax = typeSyntax.Parent as TypeDeclarationSyntax)
+        {
+            if (!typeSyntax.Modifiers.Any(static x => x.IsKind(SyntaxKind.PartialKeyword)))
+            {
+                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.ContainingTypeNotPartial, location, symbol.Name));
+            }
+        }
+
+        var containingType = symbol.ContainingType;
+        for (var type = containingType; type is not null; type = type.ContainingType)
+        {
+            if (type.IsGenericType)
+            {
+                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.GenericTypeNotSupported, location, symbol.Name));
+            }
+        }
+
+        var targetType = symbol.Parameters[0].Type;
+        var isDependencyObject = false;
+        for (var type = targetType; type is not null; type = type.BaseType)
+        {
+            if (type.ToDisplayString() == BindableObjectTypeName)
+            {
+                isDependencyObject = true;
+                break;
+            }
+        }
+
+        if (!isDependencyObject)
+        {
+            return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.InvalidTargetType, location, symbol.Name));
+        }
+
+        var propertyName = symbol.Name.Substring(GetPrefix.Length);
+
+        // Setter
+        var setMethodName = default(string);
+        var setAccessibility = Accessibility.NotApplicable;
+        foreach (var method in containingType.GetMembers(SetPrefix + propertyName).OfType<IMethodSymbol>())
+        {
+            if (method.IsStatic &&
+                method.IsPartialDefinition &&
+                method.ReturnsVoid &&
+                (method.Parameters.Length == 2) &&
+                SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, targetType) &&
+                SymbolEqualityComparer.Default.Equals(method.Parameters[1].Type, symbol.ReturnType))
+            {
+                setMethodName = method.Name;
+                setAccessibility = method.DeclaredAccessibility;
+                break;
+            }
+        }
+
+        // Parse attribute
+        var defaultValue = default(TypedConstant?);
+        var defaultValueExpression = default(string);
+        var defaultValueMember = default(string);
+        var defaultBindingMode = default(string);
+        var propertyChangedName = default(string);
+        foreach (var argument in context.Attributes[0].NamedArguments)
+        {
+            switch (argument.Key)
+            {
+                case "DefaultValue":
+                    defaultValue = argument.Value;
+                    break;
+                case "DefaultValueExpression":
+                    defaultValueExpression = argument.Value.Value as string;
+                    break;
+                case "DefaultValueMember":
+                    defaultValueMember = argument.Value.Value as string;
+                    break;
+                case "DefaultBindingMode":
+                    defaultBindingMode = argument.Value.ToCSharpExpression();
+                    break;
+                case "PropertyChanged":
+                    propertyChangedName = argument.Value.Value as string;
+                    break;
+            }
+        }
+
+        // Default value
+        var defaultValueCount = (defaultValue.HasValue ? 1 : 0) +
+                                (String.IsNullOrEmpty(defaultValueExpression) ? 0 : 1) +
+                                (String.IsNullOrEmpty(defaultValueMember) ? 0 : 1);
+        if (defaultValueCount > 1)
+        {
+            return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.DefaultValueConflict, location, symbol.Name));
+        }
+
+        var defaultValueLiteral = defaultValueExpression;
+        if (defaultValue.HasValue)
+        {
+            defaultValueLiteral = defaultValue.Value.ToCSharpExpression(symbol.ReturnType);
+            if (defaultValueLiteral is null)
+            {
+                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.InvalidDefaultValue, location, symbol.Name));
+            }
+        }
+        else if (!String.IsNullOrEmpty(defaultValueMember))
+        {
+            if (!IsDefaultValueMember(containingType, defaultValueMember!, symbol.ReturnType))
+            {
+                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.InvalidDefaultValueMember, location, defaultValueMember!));
+            }
+
+            defaultValueLiteral = defaultValueMember;
+        }
+
+        // Callback
+        if (!String.IsNullOrEmpty(propertyChangedName) &&
+            !IsPropertyChangedMethod(containingType, propertyChangedName!, out var found))
+        {
+            return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(
+                found ? Diagnostics.InvalidCallbackMethod : Diagnostics.CallbackMethodNotFound, location, propertyChangedName!));
+        }
+
+        // Model
+        var ns = String.IsNullOrEmpty(containingType.ContainingNamespace.Name)
+            ? string.Empty
+            : containingType.ContainingNamespace.ToDisplayString();
+
+        var containingTypes = default(List<ContainingTypeModel>?);
+        var containingSymbol = containingType.ContainingType;
+        while (containingSymbol is not null)
+        {
+            containingTypes ??= [];
+            containingTypes.Add(new ContainingTypeModel(containingSymbol.GetClassName(), containingSymbol.IsValueType));
+            containingSymbol = containingSymbol.ContainingType;
+        }
+
+        containingTypes?.Reverse();
+
+        return Results.Success(new AttachedPropertyModel(
+            ns,
+            containingType.GetClassName(),
+            new EquatableArray<ContainingTypeModel>(containingTypes ?? []),
+            containingType.IsStatic,
+            symbol.DeclaredAccessibility,
+            symbol.Name,
+            setMethodName,
+            setAccessibility,
+            propertyName,
+            targetType.ToDisplayString(TypeDisplayFormat),
+            symbol.ReturnType.ToDisplayString(TypeDisplayFormat),
+            symbol.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            symbol.ReturnType.SpecialType != SpecialType.System_Object,
+            defaultValueLiteral,
+            defaultBindingMode,
+            String.IsNullOrEmpty(propertyChangedName) ? null : propertyChangedName));
+    }
+
+    // The callback must match PropertyChangedCallback, because an attached property has no owner instance
+    private static bool IsPropertyChangedMethod(INamedTypeSymbol containingType, string methodName, out bool found)
+    {
+        found = false;
+        foreach (var method in containingType.GetMembers(methodName).OfType<IMethodSymbol>())
+        {
+            found = true;
+
+            if (method.IsStatic &&
+                !method.IsGenericMethod &&
+                method.ReturnsVoid &&
+                (method.Parameters.Length == 3) &&
+                (method.Parameters[0].Type.ToDisplayString() == BindableObjectTypeName) &&
+                (method.Parameters[1].Type.SpecialType == SpecialType.System_Object) &&
+                (method.Parameters[2].Type.SpecialType == SpecialType.System_Object))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsDefaultValueMember(INamedTypeSymbol containingType, string memberName, ITypeSymbol valueType)
+    {
+        foreach (var member in containingType.GetMembers(memberName))
+        {
+            var memberType = member switch
+            {
+                IFieldSymbol { IsStatic: true } field => field.Type,
+                IPropertySymbol { IsStatic: true, GetMethod: not null } property => property.Type,
+                _ => null
+            };
+            if ((memberType is not null) && SymbolEqualityComparer.Default.Equals(memberType, valueType))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // ------------------------------------------------------------
+    // Generator
+    // ------------------------------------------------------------
+
+    private static void ReportDiagnostics(SourceProductionContext context, ImmutableArray<Result<AttachedPropertyModel>> properties)
+    {
+        foreach (var info in properties.SelectError())
+        {
+            context.ReportDiagnostic(info);
+        }
+    }
+
+    private static void Execute(SourceProductionContext context, AttachedTypeModel type)
+    {
+        context.CancellationToken.ThrowIfCancellationRequested();
+
+        var builder = new SourceBuilder();
+        BuildSource(builder, type);
+
+        context.AddSource(
+            HintNameBuilder.BuildWithExtension(
+                type.Namespace,
+                ".Attached.g.cs",
+                [.. type.ContainingTypes.Select(static x => x.ClassName), type.ClassName]),
+            builder);
+    }
+
+    private static void BuildSource(SourceBuilder builder, AttachedTypeModel type)
+    {
+        var containingTypes = type.ContainingTypes;
+
+        builder.AutoGenerated();
+        builder.EnableNullable();
+        builder.NewLine();
+
+        if (!String.IsNullOrEmpty(type.Namespace))
+        {
+            builder.Namespace(type.Namespace);
+            builder.NewLine();
+        }
+
+        foreach (var containingType in containingTypes)
+        {
+            builder
+                .Indent()
+                .Append("partial ")
+                .Append(containingType.IsValueType ? "struct " : "class ")
+                .Append(containingType.ClassName)
+                .NewLine();
+            builder.BeginScope();
+        }
+
+        builder.Indent();
+        if (type.Properties[0].IsStaticClass)
+        {
+            builder.Append("static ");
+        }
+
+        builder.Append("partial class ").Append(type.ClassName).NewLine();
+        builder.BeginScope();
+
+        var first = true;
+        foreach (var property in type.Properties)
+        {
+            if (first)
+            {
+                first = false;
+            }
+            else
+            {
+                builder.NewLine();
+            }
+
+            BuildProperty(builder, type.ClassName, property);
+        }
+
+        builder.EndScope();
+
+        for (var i = 0; i < containingTypes.Count; i++)
+        {
+            builder.EndScope();
+        }
+    }
+
+    private static void BuildProperty(SourceBuilder builder, string className, AttachedPropertyModel property)
+    {
+        // field
+        builder
+            .Indent()
+            .Append(property.GetAccessibility.ToText())
+            .Append(" static readonly ")
+            .Append(BindablePropertyTypeName)
+            .Append(" ")
+            .Append(property.PropertyName)
+            .Append("Property = ")
+            .Append(BindablePropertyTypeName)
+            .Append(".CreateAttached(")
+            .NewLine();
+        builder.Indent().Append("    \"").Append(property.PropertyName).Append("\",").NewLine();
+        builder.Indent().Append("    typeof(").Append(property.TypeofType).Append("),").NewLine();
+        builder.Indent().Append("    typeof(").Append(className).Append("),").NewLine();
+        builder.Indent().Append("    ").Append(property.DefaultValue ?? $"default({property.ValueType})");
+
+        foreach (var argument in MakeOptionArguments(property))
+        {
+            builder.Append(",").NewLine();
+            builder.Indent().Append("    ").Append(argument);
+        }
+
+        builder.Append(");").NewLine();
+        builder.NewLine();
+
+        // getter
+        builder
+            .Indent()
+            .Append(property.GetAccessibility.ToText())
+            .Append(" static partial ")
+            .Append(property.ValueType)
+            .Append(" ")
+            .Append(property.GetMethodName)
+            .Append("(")
+            .Append(property.TargetType)
+            .Append(" obj) => ");
+        if (property.RequireCast)
+        {
+            builder.Append("(").Append(property.ValueType).Append(")");
+        }
+
+        builder.Append("obj.GetValue(").Append(property.PropertyName).Append("Property);").NewLine();
+
+        // setter
+        if (property.SetMethodName is not null)
+        {
+            builder.NewLine();
+            builder
+                .Indent()
+                .Append(property.SetAccessibility.ToText())
+                .Append(" static partial void ")
+                .Append(property.SetMethodName)
+                .Append("(")
+                .Append(property.TargetType)
+                .Append(" obj, ")
+                .Append(property.ValueType)
+                .Append(" value) => obj.SetValue(")
+                .Append(property.PropertyName)
+                .Append("Property, value);")
+                .NewLine();
+        }
+    }
+
+    private static List<string> MakeOptionArguments(AttachedPropertyModel property)
+    {
+        var arguments = new List<string>();
+
+        if (property.DefaultBindingMode is not null)
+        {
+            arguments.Add($"defaultBindingMode: {property.DefaultBindingMode}");
+        }
+
+        if (property.PropertyChanged is not null)
+        {
+            arguments.Add($"propertyChanged: {property.PropertyChanged}");
+        }
+
+        return arguments;
+    }
+}

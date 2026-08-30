@@ -1,7 +1,2 @@
 <Project>
-
-  <ItemGroup>
-    <CompilerVisibleProperty Include="DependencyInjectionIgnoreInterface" />
-  </ItemGroup>
-
 </Project>

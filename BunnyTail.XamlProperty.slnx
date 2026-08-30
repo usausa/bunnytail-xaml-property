@@ -1,5 +1,17 @@
 <Solution>
   <Folder Name="/Library/">
+    <Project Path="BunnyTail.XamlProperty.Wpf.Generator/BunnyTail.XamlProperty.Wpf.Generator.csproj" />
+    <Project Path="BunnyTail.XamlProperty.Wpf/BunnyTail.XamlProperty.Wpf.csproj">
+      <BuildDependency Project="BunnyTail.XamlProperty.Wpf.Generator/BunnyTail.XamlProperty.Wpf.Generator.csproj" />
+    </Project>
+    <Project Path="BunnyTail.XamlProperty.Maui.Generator/BunnyTail.XamlProperty.Maui.Generator.csproj" />
+    <Project Path="BunnyTail.XamlProperty.Maui/BunnyTail.XamlProperty.Maui.csproj">
+      <BuildDependency Project="BunnyTail.XamlProperty.Maui.Generator/BunnyTail.XamlProperty.Maui.Generator.csproj" />
+    </Project>
+    <Project Path="BunnyTail.XamlProperty.Avalonia.Generator/BunnyTail.XamlProperty.Avalonia.Generator.csproj" />
+    <Project Path="BunnyTail.XamlProperty.Avalonia/BunnyTail.XamlProperty.Avalonia.csproj">
+      <BuildDependency Project="BunnyTail.XamlProperty.Avalonia.Generator/BunnyTail.XamlProperty.Avalonia.Generator.csproj" />
+    </Project>
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
@@ -19,5 +31,8 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="BunnyTail.XamlProperty.Wpf.Tests/BunnyTail.XamlProperty.Wpf.Tests.csproj" />
+    <Project Path="BunnyTail.XamlProperty.Maui.Tests/BunnyTail.XamlProperty.Maui.Tests.csproj" />
+    <Project Path="BunnyTail.XamlProperty.Avalonia.Tests/BunnyTail.XamlProperty.Avalonia.Tests.csproj" />
   </Folder>
 </Solution>

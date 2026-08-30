@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BunnyTail.XamlProperty.Avalonia.Generator": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\BunnyTail.XamlProperty.Avalonia.Tests\\BunnyTail.XamlProperty.Avalonia.Tests.csproj"
+    }
+  }
+}
