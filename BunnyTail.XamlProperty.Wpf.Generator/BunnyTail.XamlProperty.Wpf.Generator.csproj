@@ -3,11 +3,31 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <IsRoslynComponent>true</IsRoslynComponent>
-    <IsPackable>false</IsPackable>
     <DebugType>embedded</DebugType>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <RootNamespace>BunnyTail.XamlProperty.Generator</RootNamespace>
     <CodeAnalysisRuleSet>..\Analyzers.ruleset</CodeAnalysisRuleSet>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeSymbols>false</IncludeSymbols>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="$(PKGSourceGenerateHelper)\lib\netstandard2.0\SourceGenerateHelper.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="..\BunnyTail.XamlProperty.props" Pack="true" PackagePath="buildTransitive\$(PackageId).props" Visible="false" />
+    <None Include="..\BunnyTail.XamlProperty.targets" Pack="true" PackagePath="buildTransitive\$(PackageId).targets" Visible="false" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PackageId>BunnyTail.XamlProperty.Wpf</PackageId>
+    <Title>BunnyTail.XamlProperty.Wpf</Title>
+    <Description>DependencyProperty source generator for WPF.</Description>
+    <PackageTags>sourcegenerator wpf xaml dependencyproperty</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

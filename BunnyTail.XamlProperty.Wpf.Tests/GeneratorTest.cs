@@ -36,7 +36,7 @@ public sealed class GeneratorTest
         Assert.Contains("public partial string? Text", generated, StringComparison.Ordinal);
         Assert.Contains("get => (string?)GetValue(TextProperty);", generated, StringComparison.Ordinal);
         Assert.Contains("set => SetValue(TextProperty, value);", generated, StringComparison.Ordinal);
-        Assert.DoesNotContain("PropertyMetadata", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("new global::System.Windows.PropertyMetadata", generated, StringComparison.Ordinal);
     }
 
     [Fact]

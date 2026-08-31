@@ -23,7 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BunnyTail.XamlProperty.Wpf\BunnyTail.XamlProperty.Wpf.csproj" />
     <ProjectReference Include="..\BunnyTail.XamlProperty.Wpf.Generator\BunnyTail.XamlProperty.Wpf.Generator.csproj" OutputItemType="analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\BunnyTail.XamlProperty.Wpf.Generator\BunnyTail.XamlProperty.Wpf.Generator.csproj" ReferenceOutputAssembly="true" />
   </ItemGroup>

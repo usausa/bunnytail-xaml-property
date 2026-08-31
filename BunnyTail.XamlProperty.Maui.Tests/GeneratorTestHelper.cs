@@ -12,7 +12,6 @@ internal static class GeneratorTestHelper
 {
     private static GeneratorTestRunner Runner => GeneratorTestRunner
         .For<BindablePropertyGenerator>()
-        .WithReference(typeof(BindablePropertyAttribute).Assembly)
         .WithReference(typeof(BindableObject).Assembly)
         .WithReference(typeof(BindingMode).Assembly)
         .Add(new AttachedPropertyGenerator())
@@ -27,7 +26,7 @@ internal static class GeneratorTestHelper
     public static IReadOnlyList<Diagnostic> GetDiagnosticsWithoutVerify(string source) =>
         Runner.VerifyCompiles(false).GetDiagnostics(source);
 
-    public static string GetGeneratedSource(string source) => Runner.GetGeneratedSource(source);
+    public static string GetGeneratedSource(string source) => Runner.Run(source).AllGeneratedText;
 
     public static IncrementalRunResult RunIncremental(string source, string addedSource) =>
         Runner.WithTracking().RunIncremental(source, addedSource);
