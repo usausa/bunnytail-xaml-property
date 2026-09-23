@@ -2,7 +2,7 @@ namespace BunnyTail.XamlProperty;
 
 using global::Avalonia;
 
-public sealed class RuntimeBehaviorTest
+public sealed class RuntimeBehaviorTests
 {
     private static RuntimeElement CreateElement() => new();
 

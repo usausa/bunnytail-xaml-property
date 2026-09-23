@@ -2,7 +2,7 @@ namespace BunnyTail.XamlProperty;
 
 using Microsoft.CodeAnalysis;
 
-public sealed class AttachedGeneratorTest
+public sealed class AttachedGeneratorTests
 {
     private const string Source =
         """
@@ -48,6 +48,36 @@ public sealed class AttachedGeneratorTest
 
         // Assert
         Assert.DoesNotContain(diagnostics, static x => x.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void NestedInRecordGeneratesRecordContainingType()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using System.Windows;
+
+            namespace Test;
+
+            public partial record Outer
+            {
+                public static partial class Focus
+                {
+                    [AttachedProperty(DefaultValue = false)]
+                    public static partial bool GetSuppress(DependencyObject obj);
+
+                    public static partial void SetSuppress(DependencyObject obj, bool value);
+                }
+            }
+            """;
+
+        // Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(source);
+
+        // Assert
+        Assert.Contains("partial record Outer", generated, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 namespace BunnyTail.XamlProperty;
 
-public sealed class DiagnosticTest
+public sealed class DiagnosticTests
 {
     // ------------------------------------------------------------
     // Property definition
@@ -13,13 +13,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty]
+                [DependencyProperty]
                 public string? Text { get; set; }
             }
             """;
@@ -38,13 +38,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty]
+                [DependencyProperty]
                 public static partial string? Text { get; set; }
             }
             """;
@@ -63,13 +63,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty]
+                [DependencyProperty]
                 public partial string? Text { get; private set; }
             }
             """;
@@ -92,13 +92,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public class TestElement : AvaloniaObject
+            public class TestElement : DependencyObject
             {
-                [StyledProperty]
+                [DependencyProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -111,7 +111,7 @@ public sealed class DiagnosticTest
     }
 
     [Fact]
-    public void Btxp0005NotAvaloniaObjectEmitsDiagnostic()
+    public void Btxp0005NotDependencyObjectEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -126,7 +126,7 @@ public sealed class DiagnosticTest
 
             public partial class TestElement : OtherBase
             {
-                [StyledProperty]
+                [DependencyProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -151,7 +151,7 @@ public sealed class DiagnosticTest
 
             public partial class TestElement
             {
-                [StyledProperty]
+                [DependencyProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -170,13 +170,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement<T> : AvaloniaObject
+            public partial class TestElement<T> : DependencyObject
             {
-                [StyledProperty]
+                [DependencyProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -199,13 +199,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty(DefaultValue = "abc", DefaultValueExpression = "\"abc\"")]
+                [DependencyProperty(DefaultValue = "abc", DefaultValueExpression = "\"abc\"")]
                 public partial string? Text { get; set; }
             }
             """;
@@ -224,19 +224,21 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public class BaseElement : AvaloniaObject
+            public class BaseElement : DependencyObject
             {
-                private double CoerceScale(double value) => value;
+                private void OnChanged()
+                {
+                }
             }
 
             public partial class TestElement : BaseElement
             {
-                [StyledProperty(Coerce = "CoerceScale")]
-                public partial double Scale { get; set; }
+                [DependencyProperty(PropertyChanged = nameof(BaseElement.OnChanged))]
+                public partial string? Text { get; set; }
             }
             """;
 
@@ -254,13 +256,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty(Coerce = "CoerceText")]
+                [DependencyProperty(PropertyChanged = "OnTextChanged")]
                 public partial string? Text { get; set; }
             }
             """;
@@ -273,22 +275,22 @@ public sealed class DiagnosticTest
     }
 
     [Fact]
-    public void Btxp0009InvalidCoerceSignatureEmitsDiagnostic()
+    public void Btxp0009InvalidCallbackSignatureEmitsDiagnostic()
     {
         // Arrange
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty(Coerce = nameof(CoerceText))]
+                [DependencyProperty(PropertyChanged = nameof(OnTextChanged))]
                 public partial string? Text { get; set; }
 
-                private void CoerceText(int value)
+                private void OnTextChanged(int value)
                 {
                 }
             }
@@ -308,13 +310,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty(Validate = nameof(ValidateText))]
+                [DependencyProperty(Validate = nameof(ValidateText))]
                 public partial string? Text { get; set; }
 
                 private bool ValidateText(string? value) => true;
@@ -335,13 +337,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty(DefaultValue = new int[] { 1, 2 })]
+                [DependencyProperty(DefaultValue = new int[] { 1, 2 })]
                 public partial int[]? Values { get; set; }
             }
             """;
@@ -360,15 +362,15 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
                 private static readonly int DefaultText = 1;
 
-                [StyledProperty(DefaultValueMember = nameof(DefaultText))]
+                [DependencyProperty(DefaultValueMember = nameof(DefaultText))]
                 public partial string? Text { get; set; }
             }
             """;
@@ -391,14 +393,18 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Avalonia;
+            using System.Windows;
 
             namespace Test;
 
-            public partial class TestElement : AvaloniaObject
+            public partial class TestElement : DependencyObject
             {
-                [StyledProperty(DefaultValue = 0d, Inherits = true, Coerce = nameof(CoerceScale), Validate = nameof(ValidateScale))]
+                [DependencyProperty(DefaultValue = 0d, Options = FrameworkPropertyMetadataOptions.AffectsRender, PropertyChanged = nameof(OnScaleChanged), Coerce = nameof(CoerceScale), Validate = nameof(ValidateScale))]
                 public partial double Scale { get; set; }
+
+                private void OnScaleChanged(double oldValue, double newValue)
+                {
+                }
 
                 private double CoerceScale(double value) => value;
 

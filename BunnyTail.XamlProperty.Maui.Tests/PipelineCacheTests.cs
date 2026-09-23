@@ -2,18 +2,18 @@ namespace BunnyTail.XamlProperty;
 
 using SourceGenerateHelper.Testing;
 
-public sealed class PipelineCacheTest
+public sealed class PipelineCacheTests
 {
     private const string Source =
         """
         using BunnyTail.XamlProperty;
-        using Avalonia;
+        using Microsoft.Maui.Controls;
 
         namespace Test;
 
-        public partial class TestElement : AvaloniaObject
+        public partial class TestElement : BindableObject
         {
-            [StyledProperty]
+            [BindableProperty]
             public partial string? Text { get; set; }
         }
         """;
@@ -28,13 +28,13 @@ public sealed class PipelineCacheTest
     private const string AddedTargetSource =
         """
         using BunnyTail.XamlProperty;
-        using Avalonia;
+        using Microsoft.Maui.Controls;
 
         namespace Test;
 
-        public partial class AddedElement : AvaloniaObject
+        public partial class AddedElement : BindableObject
         {
-            [StyledProperty]
+            [BindableProperty]
             public partial string? Text { get; set; }
         }
         """;
@@ -42,19 +42,21 @@ public sealed class PipelineCacheTest
     private const string BaseCallbackSource =
         """
         using BunnyTail.XamlProperty;
-        using Avalonia;
+        using Microsoft.Maui.Controls;
 
         namespace Test;
 
-        public class BaseElement : AvaloniaObject
+        public class BaseElement : BindableObject
         {
-            protected double CoerceScale(double value) => value;
+            protected void OnChanged()
+            {
+            }
         }
 
         public partial class DerivedElement : BaseElement
         {
-            [StyledProperty(Coerce = nameof(CoerceScale))]
-            public partial double Scale { get; set; }
+            [BindableProperty(PropertyChanged = nameof(OnChanged))]
+            public partial string? Text { get; set; }
         }
         """;
 

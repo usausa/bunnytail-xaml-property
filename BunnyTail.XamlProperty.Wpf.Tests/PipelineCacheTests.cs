@@ -2,18 +2,18 @@ namespace BunnyTail.XamlProperty;
 
 using SourceGenerateHelper.Testing;
 
-public sealed class PipelineCacheTest
+public sealed class PipelineCacheTests
 {
     private const string Source =
         """
         using BunnyTail.XamlProperty;
-        using Microsoft.Maui.Controls;
+        using System.Windows;
 
         namespace Test;
 
-        public partial class TestElement : BindableObject
+        public partial class TestElement : DependencyObject
         {
-            [BindableProperty]
+            [DependencyProperty]
             public partial string? Text { get; set; }
         }
         """;
@@ -28,13 +28,13 @@ public sealed class PipelineCacheTest
     private const string AddedTargetSource =
         """
         using BunnyTail.XamlProperty;
-        using Microsoft.Maui.Controls;
+        using System.Windows;
 
         namespace Test;
 
-        public partial class AddedElement : BindableObject
+        public partial class AddedElement : DependencyObject
         {
-            [BindableProperty]
+            [DependencyProperty]
             public partial string? Text { get; set; }
         }
         """;
@@ -42,11 +42,11 @@ public sealed class PipelineCacheTest
     private const string BaseCallbackSource =
         """
         using BunnyTail.XamlProperty;
-        using Microsoft.Maui.Controls;
+        using System.Windows;
 
         namespace Test;
 
-        public class BaseElement : BindableObject
+        public class BaseElement : DependencyObject
         {
             protected void OnChanged()
             {
@@ -55,7 +55,7 @@ public sealed class PipelineCacheTest
 
         public partial class DerivedElement : BaseElement
         {
-            [BindableProperty(PropertyChanged = nameof(OnChanged))]
+            [DependencyProperty(PropertyChanged = nameof(OnChanged))]
             public partial string? Text { get; set; }
         }
         """;

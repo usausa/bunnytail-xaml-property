@@ -2,7 +2,7 @@ namespace BunnyTail.XamlProperty;
 
 using Microsoft.CodeAnalysis;
 
-public sealed class GeneratorTest
+public sealed class GeneratorTests
 {
     private const string Source =
         """
@@ -130,6 +130,34 @@ public sealed class GeneratorTest
         // Assert
         Assert.Contains("partial class Outer", generated, StringComparison.Ordinal);
         Assert.Contains("partial class TestElement", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NestedClassInRecordGeneratesRecordContainingType()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.Maui.Controls;
+
+            namespace Test;
+
+            public partial record Outer
+            {
+                public partial class TestElement : BindableObject
+                {
+                    [BindableProperty]
+                    public partial string? Text { get; set; }
+                }
+            }
+            """;
+
+        // Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(source);
+
+        // Assert
+        Assert.Contains("partial record Outer", generated, StringComparison.Ordinal);
     }
 
     // ------------------------------------------------------------

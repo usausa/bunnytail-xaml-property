@@ -267,21 +267,14 @@ public sealed class StyledPropertyGenerator : IIncrementalGenerator
             ? string.Empty
             : containingType.ContainingNamespace.ToDisplayString();
 
-        var containingTypes = default(List<ContainingTypeModel>?);
-        var containingSymbol = containingType.ContainingType;
-        while (containingSymbol is not null)
-        {
-            containingTypes ??= [];
-            containingTypes.Add(new ContainingTypeModel(containingSymbol.GetClassName(), containingSymbol.IsValueType));
-            containingSymbol = containingSymbol.ContainingType;
-        }
-
-        containingTypes?.Reverse();
+        var containingTypes = containingType.GetContainingTypes()
+            .Select(static x => new ContainingTypeModel(x.GetClassName(), x.GetDeclarationKeyword()))
+            .ToArray();
 
         return Results.Success(new PropertyModel(
             ns,
             containingType.GetClassName(),
-            new EquatableArray<ContainingTypeModel>(containingTypes ?? []),
+            new EquatableArray<ContainingTypeModel>(containingTypes),
             symbol.DeclaredAccessibility,
             symbol.Name,
             symbol.Type.ToDisplayString(TypeDisplayFormat),
@@ -471,7 +464,8 @@ public sealed class StyledPropertyGenerator : IIncrementalGenerator
             builder
                 .Indent()
                 .Append("partial ")
-                .Append(containingType.IsValueType ? "struct " : "class ")
+                .Append(containingType.Keyword)
+                .Append(" ")
                 .Append(containingType.ClassName)
                 .NewLine();
             builder.BeginScope();

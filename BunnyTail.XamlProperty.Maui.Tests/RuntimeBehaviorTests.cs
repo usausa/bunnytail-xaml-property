@@ -1,9 +1,8 @@
 namespace BunnyTail.XamlProperty;
 
-using System.Windows;
-using System.Windows.Media;
+using Microsoft.Maui.Controls;
 
-public sealed class RuntimeBehaviorTest
+public sealed class RuntimeBehaviorTests
 {
     private static RuntimeElement CreateElement() => new();
 
@@ -18,9 +17,9 @@ public sealed class RuntimeBehaviorTest
         var property = RuntimeElement.ScaleProperty;
 
         // Assert
-        Assert.Equal(nameof(RuntimeElement.Scale), property.Name);
-        Assert.Equal(typeof(double), property.PropertyType);
-        Assert.Equal(typeof(RuntimeElement), property.OwnerType);
+        Assert.Equal(nameof(RuntimeElement.Scale), property.PropertyName);
+        Assert.Equal(typeof(double), property.ReturnType);
+        Assert.Equal(typeof(RuntimeElement), property.DeclaringType);
     }
 
     [Fact]
@@ -52,13 +51,13 @@ public sealed class RuntimeBehaviorTest
     }
 
     [Fact]
-    public void DefaultValueExpressionIsApplied()
+    public void DefaultBindingModeIsApplied()
     {
         // Arrange & Act
-        var element = CreateElement();
+        var property = RuntimeElement.LabelProperty;
 
         // Assert
-        Assert.Same(Brushes.SteelBlue, element.BarBrush);
+        Assert.Equal(BindingMode.TwoWay, property.DefaultBindingMode);
     }
 
     // ------------------------------------------------------------
@@ -81,6 +80,19 @@ public sealed class RuntimeBehaviorTest
     }
 
     [Fact]
+    public void PropertyChangingCallbackIsInvoked()
+    {
+        // Arrange
+        var element = CreateElement();
+
+        // Act
+        element.Scale = 3d;
+
+        // Assert
+        Assert.Equal(1, element.ChangingCount);
+    }
+
+    [Fact]
     public void CoerceCallbackIsApplied()
     {
         // Arrange
@@ -91,7 +103,6 @@ public sealed class RuntimeBehaviorTest
 
         // Assert
         Assert.Equal(10d, element.Scale);
-        Assert.Equal(10d, element.NewValue);
     }
 
     [Fact]
@@ -99,28 +110,34 @@ public sealed class RuntimeBehaviorTest
     {
         // Arrange
         var element = CreateElement();
-
-        // Act & Assert
         element.Label = "abc";
+
+        // Act
+        // A value rejected by validateValue is ignored, and the previous value is kept
+        element.Label = "too long value";
+
+        // Assert
         Assert.Equal("abc", element.Label);
-        Assert.Throws<ArgumentException>(() => element.Label = "too long value");
     }
 }
 
-internal sealed partial class RuntimeElement : DependencyObject
+internal sealed partial class RuntimeElement : BindableObject
 {
-    [DependencyProperty(DefaultValue = 1d, PropertyChanged = nameof(OnScaleChanged), Coerce = nameof(CoerceScale))]
+    [BindableProperty(DefaultValue = 1d, PropertyChanged = nameof(OnScaleChanged), PropertyChanging = nameof(OnScaleChanging), Coerce = nameof(CoerceScale))]
     public partial double Scale { get; set; }
 
-    [DependencyProperty(DefaultValueExpression = "global::System.Windows.Media.Brushes.SteelBlue")]
-    public partial Brush? BarBrush { get; set; }
-
-    [DependencyProperty(Validate = nameof(ValidateLabel))]
+    [BindableProperty(DefaultBindingMode = BindingMode.TwoWay, Validate = nameof(ValidateLabel))]
     public partial string? Label { get; set; }
 
     public double MaximumScale { get; set; } = 10d;
 
+    public int MaximumLabelLength { get; set; } = 5;
+
     public int ChangedCount { get; private set; }
+
+    public int ChangingCount { get; private set; }
+
+    public double ChangingDelta { get; private set; }
 
     public double OldValue { get; private set; }
 
@@ -133,7 +150,13 @@ internal sealed partial class RuntimeElement : DependencyObject
         NewValue = newValue;
     }
 
+    private void OnScaleChanging(double oldValue, double newValue)
+    {
+        ChangingCount++;
+        ChangingDelta = newValue - oldValue;
+    }
+
     private double CoerceScale(double value) => Math.Clamp(value, 0d, MaximumScale);
 
-    private static bool ValidateLabel(string? value) => value is null || (value.Length <= 5);
+    private bool ValidateLabel(string? value) => value is null || (value.Length <= MaximumLabelLength);
 }

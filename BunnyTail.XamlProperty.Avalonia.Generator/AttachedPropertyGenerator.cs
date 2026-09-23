@@ -236,21 +236,14 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             ? string.Empty
             : containingType.ContainingNamespace.ToDisplayString();
 
-        var containingTypes = default(List<ContainingTypeModel>?);
-        var containingSymbol = containingType.ContainingType;
-        while (containingSymbol is not null)
-        {
-            containingTypes ??= [];
-            containingTypes.Add(new ContainingTypeModel(containingSymbol.GetClassName(), containingSymbol.IsValueType));
-            containingSymbol = containingSymbol.ContainingType;
-        }
-
-        containingTypes?.Reverse();
+        var containingTypes = containingType.GetContainingTypes()
+            .Select(static x => new ContainingTypeModel(x.GetClassName(), x.GetDeclarationKeyword()))
+            .ToArray();
 
         return Results.Success(new AttachedPropertyModel(
             ns,
             containingType.GetClassName(),
-            new EquatableArray<ContainingTypeModel>(containingTypes ?? []),
+            new EquatableArray<ContainingTypeModel>(containingTypes),
             containingType.IsStatic,
             symbol.DeclaredAccessibility,
             symbol.Name,
@@ -329,7 +322,8 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             builder
                 .Indent()
                 .Append("partial ")
-                .Append(containingType.IsValueType ? "struct " : "class ")
+                .Append(containingType.Keyword)
+                .Append(" ")
                 .Append(containingType.ClassName)
                 .NewLine();
             builder.BeginScope();

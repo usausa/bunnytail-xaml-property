@@ -1,6 +1,6 @@
 namespace BunnyTail.XamlProperty;
 
-public sealed class DiagnosticTest
+public sealed class DiagnosticTests
 {
     // ------------------------------------------------------------
     // Property definition
@@ -13,13 +13,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty]
+                [StyledProperty]
                 public string? Text { get; set; }
             }
             """;
@@ -38,13 +38,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty]
+                [StyledProperty]
                 public static partial string? Text { get; set; }
             }
             """;
@@ -63,13 +63,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty]
+                [StyledProperty]
                 public partial string? Text { get; private set; }
             }
             """;
@@ -92,13 +92,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public class TestElement : BindableObject
+            public class TestElement : AvaloniaObject
             {
-                [BindableProperty]
+                [StyledProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -111,7 +111,7 @@ public sealed class DiagnosticTest
     }
 
     [Fact]
-    public void Btxp0005NotBindableObjectEmitsDiagnostic()
+    public void Btxp0005NotAvaloniaObjectEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -126,7 +126,7 @@ public sealed class DiagnosticTest
 
             public partial class TestElement : OtherBase
             {
-                [BindableProperty]
+                [StyledProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -151,7 +151,7 @@ public sealed class DiagnosticTest
 
             public partial class TestElement
             {
-                [BindableProperty]
+                [StyledProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -170,13 +170,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement<T> : BindableObject
+            public partial class TestElement<T> : AvaloniaObject
             {
-                [BindableProperty]
+                [StyledProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -199,13 +199,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty(DefaultValue = "abc", DefaultValueExpression = "\"abc\"")]
+                [StyledProperty(DefaultValue = "abc", DefaultValueExpression = "\"abc\"")]
                 public partial string? Text { get; set; }
             }
             """;
@@ -224,21 +224,19 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public class BaseElement : BindableObject
+            public class BaseElement : AvaloniaObject
             {
-                private void OnChanged()
-                {
-                }
+                private double CoerceScale(double value) => value;
             }
 
             public partial class TestElement : BaseElement
             {
-                [BindableProperty(PropertyChanged = "OnChanged")]
-                public partial string? Text { get; set; }
+                [StyledProperty(Coerce = "CoerceScale")]
+                public partial double Scale { get; set; }
             }
             """;
 
@@ -256,13 +254,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty(PropertyChanged = "OnTextChanged")]
+                [StyledProperty(Coerce = "CoerceText")]
                 public partial string? Text { get; set; }
             }
             """;
@@ -275,22 +273,22 @@ public sealed class DiagnosticTest
     }
 
     [Fact]
-    public void Btxp0009InvalidCallbackSignatureEmitsDiagnostic()
+    public void Btxp0009InvalidCoerceSignatureEmitsDiagnostic()
     {
         // Arrange
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty(PropertyChanged = nameof(OnTextChanged))]
+                [StyledProperty(Coerce = nameof(CoerceText))]
                 public partial string? Text { get; set; }
 
-                private void OnTextChanged(int value)
+                private void CoerceText(int value)
                 {
                 }
             }
@@ -304,24 +302,22 @@ public sealed class DiagnosticTest
     }
 
     [Fact]
-    public void Btxp0009InvalidCoerceSignatureEmitsDiagnostic()
+    public void Btxp0009NonStaticValidateEmitsDiagnostic()
     {
         // Arrange
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty(Coerce = nameof(CoerceText))]
+                [StyledProperty(Validate = nameof(ValidateText))]
                 public partial string? Text { get; set; }
 
-                private void CoerceText(string? value)
-                {
-                }
+                private bool ValidateText(string? value) => true;
             }
             """;
 
@@ -339,13 +335,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty(DefaultValue = new int[] { 1, 2 })]
+                [StyledProperty(DefaultValue = new int[] { 1, 2 })]
                 public partial int[]? Values { get; set; }
             }
             """;
@@ -364,15 +360,15 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
                 private static readonly int DefaultText = 1;
 
-                [BindableProperty(DefaultValueMember = nameof(DefaultText))]
+                [StyledProperty(DefaultValueMember = nameof(DefaultText))]
                 public partial string? Text { get; set; }
             }
             """;
@@ -395,22 +391,18 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using Microsoft.Maui.Controls;
+            using Avalonia;
 
             namespace Test;
 
-            public partial class TestElement : BindableObject
+            public partial class TestElement : AvaloniaObject
             {
-                [BindableProperty(DefaultValue = 0d, DefaultBindingMode = BindingMode.TwoWay, PropertyChanged = nameof(OnScaleChanged), Coerce = nameof(CoerceScale), Validate = nameof(ValidateScale))]
+                [StyledProperty(DefaultValue = 0d, Inherits = true, Coerce = nameof(CoerceScale), Validate = nameof(ValidateScale))]
                 public partial double Scale { get; set; }
-
-                private void OnScaleChanged(double oldValue, double newValue)
-                {
-                }
 
                 private double CoerceScale(double value) => value;
 
-                private bool ValidateScale(double value) => true;
+                private static bool ValidateScale(double value) => true;
             }
             """;
 

@@ -1,6 +1,6 @@
 namespace BunnyTail.XamlProperty;
 
-public sealed class DiagnosticTest
+public sealed class DiagnosticTests
 {
     // ------------------------------------------------------------
     // Property definition
@@ -13,13 +13,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty]
+                [BindableProperty]
                 public string? Text { get; set; }
             }
             """;
@@ -38,13 +38,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty]
+                [BindableProperty]
                 public static partial string? Text { get; set; }
             }
             """;
@@ -63,13 +63,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty]
+                [BindableProperty]
                 public partial string? Text { get; private set; }
             }
             """;
@@ -92,13 +92,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public class TestElement : DependencyObject
+            public class TestElement : BindableObject
             {
-                [DependencyProperty]
+                [BindableProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -111,7 +111,7 @@ public sealed class DiagnosticTest
     }
 
     [Fact]
-    public void Btxp0005NotDependencyObjectEmitsDiagnostic()
+    public void Btxp0005NotBindableObjectEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -126,7 +126,7 @@ public sealed class DiagnosticTest
 
             public partial class TestElement : OtherBase
             {
-                [DependencyProperty]
+                [BindableProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -151,7 +151,7 @@ public sealed class DiagnosticTest
 
             public partial class TestElement
             {
-                [DependencyProperty]
+                [BindableProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -170,13 +170,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement<T> : DependencyObject
+            public partial class TestElement<T> : BindableObject
             {
-                [DependencyProperty]
+                [BindableProperty]
                 public partial string? Text { get; set; }
             }
             """;
@@ -199,13 +199,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty(DefaultValue = "abc", DefaultValueExpression = "\"abc\"")]
+                [BindableProperty(DefaultValue = "abc", DefaultValueExpression = "\"abc\"")]
                 public partial string? Text { get; set; }
             }
             """;
@@ -224,11 +224,11 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public class BaseElement : DependencyObject
+            public class BaseElement : BindableObject
             {
                 private void OnChanged()
                 {
@@ -237,7 +237,7 @@ public sealed class DiagnosticTest
 
             public partial class TestElement : BaseElement
             {
-                [DependencyProperty(PropertyChanged = nameof(BaseElement.OnChanged))]
+                [BindableProperty(PropertyChanged = "OnChanged")]
                 public partial string? Text { get; set; }
             }
             """;
@@ -256,13 +256,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty(PropertyChanged = "OnTextChanged")]
+                [BindableProperty(PropertyChanged = "OnTextChanged")]
                 public partial string? Text { get; set; }
             }
             """;
@@ -281,13 +281,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty(PropertyChanged = nameof(OnTextChanged))]
+                [BindableProperty(PropertyChanged = nameof(OnTextChanged))]
                 public partial string? Text { get; set; }
 
                 private void OnTextChanged(int value)
@@ -304,22 +304,24 @@ public sealed class DiagnosticTest
     }
 
     [Fact]
-    public void Btxp0009NonStaticValidateEmitsDiagnostic()
+    public void Btxp0009InvalidCoerceSignatureEmitsDiagnostic()
     {
         // Arrange
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty(Validate = nameof(ValidateText))]
+                [BindableProperty(Coerce = nameof(CoerceText))]
                 public partial string? Text { get; set; }
 
-                private bool ValidateText(string? value) => true;
+                private void CoerceText(string? value)
+                {
+                }
             }
             """;
 
@@ -337,13 +339,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty(DefaultValue = new int[] { 1, 2 })]
+                [BindableProperty(DefaultValue = new int[] { 1, 2 })]
                 public partial int[]? Values { get; set; }
             }
             """;
@@ -362,15 +364,15 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
                 private static readonly int DefaultText = 1;
 
-                [DependencyProperty(DefaultValueMember = nameof(DefaultText))]
+                [BindableProperty(DefaultValueMember = nameof(DefaultText))]
                 public partial string? Text { get; set; }
             }
             """;
@@ -393,13 +395,13 @@ public sealed class DiagnosticTest
         const string source =
             """
             using BunnyTail.XamlProperty;
-            using System.Windows;
+            using Microsoft.Maui.Controls;
 
             namespace Test;
 
-            public partial class TestElement : DependencyObject
+            public partial class TestElement : BindableObject
             {
-                [DependencyProperty(DefaultValue = 0d, Options = FrameworkPropertyMetadataOptions.AffectsRender, PropertyChanged = nameof(OnScaleChanged), Coerce = nameof(CoerceScale), Validate = nameof(ValidateScale))]
+                [BindableProperty(DefaultValue = 0d, DefaultBindingMode = BindingMode.TwoWay, PropertyChanged = nameof(OnScaleChanged), Coerce = nameof(CoerceScale), Validate = nameof(ValidateScale))]
                 public partial double Scale { get; set; }
 
                 private void OnScaleChanged(double oldValue, double newValue)
@@ -408,7 +410,7 @@ public sealed class DiagnosticTest
 
                 private double CoerceScale(double value) => value;
 
-                private static bool ValidateScale(double value) => true;
+                private bool ValidateScale(double value) => true;
             }
             """;
 
