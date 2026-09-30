@@ -112,7 +112,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
     private static string MakeDisplayName(string ns, EquatableArray<ContainingTypeModel> containingTypes, string className) =>
         (String.IsNullOrEmpty(ns) ? string.Empty : ns + ".") + String.Join(".", containingTypes.Select(static x => x.ClassName).Append(className));
 
-    // Hint names are compared ignoring case, so of the types whose names differ only in case, only the first is generated
     private static List<(string HintName, string Name, string Other)> FindHintNameCollisions(ImmutableArray<Result<AttachedPropertyModel>> properties)
     {
         var collisions = new List<(string HintName, string Name, string Other)>();
@@ -169,7 +168,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             return CreateFallback(symbol, syntax, new DiagnosticInfo(Diagnostics.InvalidAccessorDefinition, location, symbol.Name));
         }
 
-        // Validate containing type (the generated part of a file-local type would be another type)
+        // Validate containing type
         if (!IsExtendable(syntax, symbol.ContainingType))
         {
             return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.ContainingTypeNotPartial, location, AttributeLabel, symbol.Name));
@@ -202,7 +201,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
 
         var propertyName = symbol.Name.Substring(GetPrefix.Length);
 
-        // Setter (a partial Set method that does not match the getter gets a throwing implementation)
+        // Setter
         var setSignature = default(string);
         var setTargetName = string.Empty;
         var setValueName = string.Empty;
@@ -263,7 +262,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             }
         }
 
-        // Default value (an invalid one is reported, and the value is left out of the generated code)
+        // Default value
         var defaultValueCount = (defaultValue.HasValue ? 1 : 0) +
                                 (String.IsNullOrEmpty(defaultValueExpression) ? 0 : 1) +
                                 (String.IsNullOrEmpty(defaultValueMember) ? 0 : 1);
@@ -275,7 +274,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         }
         else if (defaultValue.HasValue)
         {
-            // The value must convert to the property type implicitly, so 1.5 for int and null for a value type are errors
             defaultValueLiteral = defaultValue.Value.TryToCSharpExpression(symbol.ReturnType, context.SemanticModel, syntax.SpanStart, out _)
                 ? defaultValue.Value.ToCSharpExpression(symbol.ReturnType)
                 : null;
@@ -297,7 +295,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         }
         else if (!String.IsNullOrEmpty(defaultValueExpression))
         {
-            // The expression is bound where the attribute is written, and the usings in effect there are copied, and a conversion that changes the boxed type is written as a cast
             if (IsDefaultValueExpression(context.SemanticModel, syntax.SpanStart, defaultValueExpression!, symbol.ReturnType, out var castRequired))
             {
                 defaultValueLiteral = castRequired ? "(" + symbol.ReturnType.ToDisplayString(TypeDisplayFormat) + ")(" + defaultValueExpression + ")" : defaultValueExpression;
@@ -330,7 +327,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         var fieldName = propertyName + "Property";
         var valueType = symbol.ReturnType.ToDisplayString(TypeDisplayFormat);
 
-        // A field name taken by another member gets only a throwing implementation
         var fieldConflict = HasFieldConflict(
             containingType,
             fieldName,
@@ -373,10 +369,8 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         return new Result<AttachedPropertyModel>(attachedModel, new EquatableArray<DiagnosticInfo>(diagnostics));
     }
 
-    // The callback must match PropertyChangedCallback, because an attached property has no owner instance
     private static bool IsPropertyChangedMethod(SemanticModel semanticModel, int position, INamedTypeSymbol containingType, string methodName, out bool found)
     {
-        // The overloads that the name finds in the type as C# looks it up, base types included
         found = false;
         foreach (var method in semanticModel.LookupSymbols(position, containingType, methodName).OfType<IMethodSymbol>())
         {
@@ -415,14 +409,12 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         return false;
     }
 
-    // The value is boxed as it is, so a conversion must keep its runtime type
     private static bool IsDefaultValueType(Compilation compilation, ITypeSymbol valueType, ITypeSymbol propertyType)
     {
         var conversion = compilation.ClassifyConversion(valueType, propertyType);
         return conversion.IsImplicit && (conversion.IsIdentity || conversion.IsReference || conversion.IsBoxing || conversion.IsNullable);
     }
 
-    // The field generated for a base type is not in the compilation, so the member it is generated for is looked at as well
     private static bool HidesBaseMember(Compilation compilation, INamedTypeSymbol containingType, string fieldName, string sourceName)
     {
         for (var type = containingType.BaseType; type is not null; type = type.BaseType)
@@ -540,7 +532,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
 
     private static void BuildProperty(SourceBuilder builder, string className, AttachedPropertyModel property)
     {
-        // Without the field, the accessors only throw
         if (property.IsFallback)
         {
             builder.Indent().Append(property.GetSignature).NewLine();
@@ -605,7 +596,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         builder.Append(");").NewLine();
         builder.NewLine();
 
-        // getter (the implementation repeats the declaration of the definition)
+        // getter
         builder
             .Indent()
             .Append(property.GetSignature)
@@ -680,7 +671,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
     // Helper
     // ------------------------------------------------------------
 
-    // A partial definition of a wrong shape gets a throwing implementation (with its partial Set method), so that the error is reported alone
     private static Result<AttachedPropertyModel> CreateFallback(IMethodSymbol symbol, MethodDeclarationSyntax syntax, DiagnosticInfo error)
     {
         var containingType = symbol.ContainingType;
@@ -761,7 +751,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         return true;
     }
 
-    // The expression must convert to the value type where the attribute is written
     private static bool IsDefaultValueExpression(SemanticModel semanticModel, int position, string text, ITypeSymbol valueType, out bool castRequired)
     {
         castRequired = false;
@@ -781,7 +770,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         return true;
     }
 
-    // The usings in effect at the declaration, written to the generated file with their targets fully qualified
     private static string[] CollectUsings(SemanticModel semanticModel, SyntaxNode syntax)
     {
         var usings = new List<string>();
@@ -819,7 +807,6 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         return [.. usings];
     }
 
-    // The field would clash with a member of the user, or with the field of a property with the same name declared earlier
     private static bool HasFieldConflict(INamedTypeSymbol containingType, string fieldName, IEnumerable<ISymbol> others, SyntaxNode syntax)
     {
         if (!containingType.GetMembers(fieldName).IsEmpty)
