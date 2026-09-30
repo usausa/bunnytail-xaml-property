@@ -323,7 +323,7 @@ public sealed class GeneratorTests
 
         // Assert
         Assert.Contains("propertyChanged: OnTextChanged", generated, StringComparison.Ordinal);
-        Assert.DoesNotContain("static (bindable, oldValue, newValue)", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("static (__bindable, __oldValue, __newValue)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -409,7 +409,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("propertyChanged: static (bindable, oldValue, newValue) => ((TestElement)bindable).OnChanged()", generated, StringComparison.Ordinal);
+        Assert.Contains("propertyChanged: static (__bindable, __oldValue, __newValue) => ((TestElement)__bindable).OnChanged()", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -434,7 +434,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("propertyChanged: static (bindable, oldValue, newValue) => ((TestElement)bindable).Invalidate()", generated, StringComparison.Ordinal);
+        Assert.Contains("propertyChanged: static (__bindable, __oldValue, __newValue) => ((TestElement)__bindable).Invalidate()", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -463,7 +463,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("propertyChanged: static (bindable, oldValue, newValue) => ((TestElement)bindable).OnTextChanged((string?)oldValue, (string?)newValue)", generated, StringComparison.Ordinal);
+        Assert.Contains("propertyChanged: static (__bindable, __oldValue, __newValue) => ((TestElement)__bindable).OnTextChanged((string?)__oldValue, (string?)__newValue)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -492,7 +492,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("propertyChanging: static (bindable, oldValue, newValue) => ((TestElement)bindable).OnTextChanging((string?)oldValue, (string?)newValue)", generated, StringComparison.Ordinal);
+        Assert.Contains("propertyChanging: static (__bindable, __oldValue, __newValue) => ((TestElement)__bindable).OnTextChanging((string?)__oldValue, (string?)__newValue)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -521,7 +521,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("propertyChanged: static (bindable, oldValue, newValue) => ((TestElement)bindable).OnTextChanged()", generated, StringComparison.Ordinal);
+        Assert.Contains("propertyChanged: static (__bindable, __oldValue, __newValue) => ((TestElement)__bindable).OnTextChanged()", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -548,7 +548,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("coerceValue: static (bindable, value) => ((TestElement)bindable).CoerceScale((double)value)", generated, StringComparison.Ordinal);
+        Assert.Contains("coerceValue: static (__bindable, __value) => ((TestElement)__bindable).CoerceScale((double)__value)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -575,7 +575,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("validateValue: static (bindable, value) => ValidateScale((double)value)", generated, StringComparison.Ordinal);
+        Assert.Contains("validateValue: static (__bindable, __value) => ValidateScale((double)__value)", generated, StringComparison.Ordinal);
     }
 
     [Fact]

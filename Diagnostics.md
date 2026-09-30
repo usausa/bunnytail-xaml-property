@@ -1,19 +1,20 @@
 # Diagnostics
 
-The same identifier is used for the same meaning on every platform, so an identifier can be unused on a platform.
-
 | ID | Severity | Description | How to fix |
 |---|---|---|---|
 | BTXP0001 | ❌ Error | The property is not declared as a partial property | Declare the property as `public partial T Name { get; set; }` |
 | BTXP0002 | ❌ Error | The property is static, and a static property can not be backed by an instance value | Remove `static` from the property, or register the property by hand |
 | BTXP0003 | ❌ Error | The property does not have both accessors, or an accessor has its own accessibility modifier such as `private set` | Declare the property as `{ get; set; }` without accessor modifiers |
-| BTXP0004 | ❌ Error | The containing type, or one of its outer types, is not partial | Add `partial` to the containing type and to every outer type |
-| BTXP0005 | ❌ Error | The containing type has an explicit base type that is not derived from the property host type, so `GetValue` and `SetValue` are not available. A type with no explicit base type is not checked, because the base type can be declared in another partial declaration such as one generated from XAML | Derive the containing type from the property host type |
+| BTXP0004 | ❌ Error | The containing type, or one of its outer types, is not partial, or is `file`-local (the generated part in another file would be another type) | Add `partial` to the containing type and to every outer type, and declare them without `file` |
+| BTXP0005 | ❌ Error | The containing type is a struct or a record, or has an explicit base type that is not derived from the property host type, so `GetValue` and `SetValue` are not available. A class with no explicit base type is not checked, because the base type can be declared in another partial declaration such as one generated from XAML | Derive the containing type from the property host type |
 | BTXP0006 | ❌ Error | The containing type is generic, and a static property field would be created per type argument | Move the property to a non generic type |
 | BTXP0007 | ❌ Error | More than one of `DefaultValue`, `DefaultValueExpression` and `DefaultValueMember` is specified | Leave a single default value specification |
-| BTXP0008 | ❌ Error | The method specified for a callback does not exist in the containing type or its base types | Specify the method with `nameof`, and define it in the same type or a base type |
-| BTXP0009 | ❌ Error | The signature of the specified callback method does not match, or more than one overload is applicable | Match the signature required by the callback |
-| BTXP0010 | ❌ Error | The value specified for `DefaultValue` can not be written as a constant in the generated code | Use `DefaultValueExpression` or `DefaultValueMember` |
-| BTXP0011 | ❌ Error | The member specified for `DefaultValueMember` is not a static field or property of the property type | Specify a static member whose type matches the property type |
-| BTXP0012 | ❌ Error | The method with `[AttachedProperty]` is not a `static partial` getter with a single parameter and a return type | Declare the method as `public static partial T Get<Name>(TTarget obj);` |
+| BTXP0008 | ❌ Error | The method specified for a callback is not found by the name as C# looks it up in the containing type and its base types, or a member of another kind such as a delegate field hides it. The property is generated without the callback | Specify the method with `nameof`, and define it in the same type or a base type |
+| BTXP0009 | ❌ Error | The signature of the specified callback method does not match, or more than one overload is applicable. The property is generated without the callback | Match the signature required by the callback |
+| BTXP0010 | ❌ Error | The value specified for `DefaultValue` can not be written as a constant in the generated code, or the value of `DefaultValue` or `DefaultValueExpression` does not convert to the property type implicitly (such as `1.5` for `int`, or `null` for a value type), or the expression does not compile where the attribute is written. The property is generated without the default value | Specify a value of the property type, or use `DefaultValueExpression` or `DefaultValueMember` |
+| BTXP0011 | ❌ Error | The member specified for `DefaultValueMember` is not a static field or property of the property type or a type derived from it | Specify a static member whose type matches the property type |
+| BTXP0012 | ❌ Error | The method with `[AttachedProperty]` is not a `static partial` getter with a single parameter and a return type (not returned by reference) | Declare the method as `public static partial T Get<Name>(TTarget obj);` |
 | BTXP0013 | ❌ Error | The target type of the `[AttachedProperty]` getter is not derived from the property host type | Use a type derived from the property host type as the parameter type |
+| BTXP0014 | ❌ Error | The `partial` `Set` method of the `[AttachedProperty]` getter is not a `static void` method that takes the target and the value of the getter, so it gets an implementation that only throws | Declare the method as `public static partial void Set<Name>(TTarget obj, T value);` |
+| BTXP0015 | ❌ Error | The name of the property field (`<Name>Property`) is already used in the type, by a member of the user or by a property with the same name declared earlier (a property and an attached property, or getter overloads), so the later one gets an implementation that only throws | Rename the property or the member |
+| BTXP0016 | ❌ Error | The name of a type with properties differs only in case from another in the same namespace, so its properties are not generated (generated file names are compared ignoring case) | Rename one of the types |

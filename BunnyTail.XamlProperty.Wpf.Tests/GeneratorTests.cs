@@ -379,7 +379,7 @@ public sealed class GeneratorTests
 
         // Assert
         Assert.Contains("            CoerceScale));", generated, StringComparison.Ordinal);
-        Assert.DoesNotContain("static (d, baseValue)", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("static (__d, __baseValue)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -407,7 +407,7 @@ public sealed class GeneratorTests
 
         // Assert
         Assert.Contains("    ValidateScale);", generated, StringComparison.Ordinal);
-        Assert.DoesNotContain("static value =>", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("static __value =>", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -439,7 +439,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("static (d, e) => ((TestElement)d).OnChanged()", generated, StringComparison.Ordinal);
+        Assert.Contains("static (__d, __e) => ((TestElement)__d).OnChanged()", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -475,7 +475,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("static (d, e) => ((TestElement)d).OnChanged()", generated, StringComparison.Ordinal);
+        Assert.Contains("static (__d, __e) => ((TestElement)__d).OnChanged()", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -504,7 +504,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("new global::System.Windows.PropertyMetadata(static (d, e) => ((TestElement)d).OnTextChanged((string?)e.OldValue, (string?)e.NewValue))", generated, StringComparison.Ordinal);
+        Assert.Contains("new global::System.Windows.PropertyMetadata(static (__d, __e) => ((TestElement)__d).OnTextChanged((string?)__e.OldValue, (string?)__e.NewValue))", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -533,7 +533,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("new global::System.Windows.PropertyMetadata(static (d, e) => ((TestElement)d).OnTextChanged())", generated, StringComparison.Ordinal);
+        Assert.Contains("new global::System.Windows.PropertyMetadata(static (__d, __e) => ((TestElement)__d).OnTextChanged())", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -563,7 +563,7 @@ public sealed class GeneratorTests
         Assert.Contains("new global::System.Windows.PropertyMetadata(", generated, StringComparison.Ordinal);
         Assert.Contains("default(double)", generated, StringComparison.Ordinal);
         Assert.Contains("null", generated, StringComparison.Ordinal);
-        Assert.Contains("static (d, baseValue) => ((TestElement)d).CoerceScale((double)baseValue)", generated, StringComparison.Ordinal);
+        Assert.Contains("static (__d, __baseValue) => ((TestElement)__d).CoerceScale((double)__baseValue)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -590,7 +590,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("static (d, baseValue) => CoerceScale((double)baseValue)", generated, StringComparison.Ordinal);
+        Assert.Contains("static (__d, __baseValue) => CoerceScale((double)__baseValue)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -618,7 +618,7 @@ public sealed class GeneratorTests
 
         // Assert
         Assert.Contains("null,", generated, StringComparison.Ordinal);
-        Assert.Contains("static value => ValidateScale((double)value));", generated, StringComparison.Ordinal);
+        Assert.Contains("static __value => ValidateScale((double)__value));", generated, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -9,17 +9,28 @@ internal sealed record AttachedPropertyModel(
     string Namespace,
     string ClassName,
     EquatableArray<ContainingTypeModel> ContainingTypes,
+    string TypeKeyword,
     bool IsStaticClass,
     // Accessor
     Accessibility GetAccessibility,
-    string GetMethodName,
-    string? SetMethodName,
-    Accessibility SetAccessibility,
+    string GetSignature,
+    string GetParameterName,
+    string? SetSignature,
+    string SetTargetName,
+    string SetValueName,
     // Property
     string PropertyName,
+    bool IsNewField,
     string TargetType,
     string ValueType,
     // Metadata
     string? DefaultValue,
     string? DefaultBindingMode,
-    bool Inherits);
+    bool Inherits,
+    // Generation
+    EquatableArray<string> Usings,
+    bool IsFallback,
+    bool IsSetFallback,
+    bool GetTargetNullable,
+    bool SetTargetNullable,
+    bool SetValueNullable);

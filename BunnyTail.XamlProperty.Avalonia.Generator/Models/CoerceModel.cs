@@ -3,4 +3,5 @@ namespace BunnyTail.XamlProperty.Generator.Models;
 internal sealed record CoerceModel(
     string MethodName,
     bool IsMethodGroup,
-    bool IsStatic);
+    bool IsStatic,
+    bool TakesObject);

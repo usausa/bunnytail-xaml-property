@@ -349,7 +349,7 @@ public sealed class GeneratorTests
 
         // Assert
         Assert.Contains("coerce: CoerceScale", generated, StringComparison.Ordinal);
-        Assert.DoesNotContain("static (o, value)", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("static (__o, __value)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -379,7 +379,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("coerce: static (o, value) => ((TestElement)o).CoerceScale(value)", generated, StringComparison.Ordinal);
+        Assert.Contains("coerce: static (__o, __value) => ((TestElement)__o).CoerceScale(__value!)!", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -406,7 +406,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("coerce: static (o, value) => ((TestElement)o).CoerceScale(value)", generated, StringComparison.Ordinal);
+        Assert.Contains("coerce: static (__o, __value) => ((TestElement)__o).CoerceScale(__value!)!", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -433,7 +433,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("coerce: static (o, value) => CoerceScale(value)", generated, StringComparison.Ordinal);
+        Assert.Contains("coerce: static (__o, __value) => CoerceScale(__value!)!", generated, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -460,7 +460,7 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("validate: ValidateScale", generated, StringComparison.Ordinal);
+        Assert.Contains("validate: static __value => ValidateScale(__value!)", generated, StringComparison.Ordinal);
     }
 
     [Fact]

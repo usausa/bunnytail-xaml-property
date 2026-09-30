@@ -57,6 +57,7 @@ Avalonia does not have `PropertyChanged`, because it handles property change by 
 
 Add `[AttachedProperty]` to a `static partial` getter, and the property field and the accessor implementations are generated.
 A setter is generated when a matching `Set` method is declared.
+A `partial` `Set` method whose parameters do not match the target and the value of the getter is an error, and gets an implementation that only throws.
 
 ```csharp
 public static partial class Focus

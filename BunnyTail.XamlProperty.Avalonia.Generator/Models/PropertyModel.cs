@@ -11,7 +11,9 @@ internal sealed record PropertyModel(
     EquatableArray<ContainingTypeModel> ContainingTypes,
     // Property signature
     Accessibility PropertyAccessibility,
+    string Signature,
     string PropertyName,
+    bool IsNewField,
     string PropertyType,
     // Metadata
     string? DefaultValue,
@@ -20,4 +22,8 @@ internal sealed record PropertyModel(
     bool EnableDataValidation,
     // Callback
     CoerceModel? Coerce,
-    ValidateModel? Validate);
+    ValidateModel? Validate,
+    // Generation
+    EquatableArray<string> Usings,
+    bool IsFallback,
+    bool SetValueNullable);

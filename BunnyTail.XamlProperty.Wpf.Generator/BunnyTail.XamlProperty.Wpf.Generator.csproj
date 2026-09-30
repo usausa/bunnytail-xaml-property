@@ -19,8 +19,8 @@
   <ItemGroup>
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="$(PKGSourceGenerateHelper)\lib\netstandard2.0\SourceGenerateHelper.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="..\BunnyTail.XamlProperty.props" Pack="true" PackagePath="buildTransitive\$(PackageId).props" Visible="false" />
-    <None Include="..\BunnyTail.XamlProperty.targets" Pack="true" PackagePath="buildTransitive\$(PackageId).targets" Visible="false" />
+    <None Include="..\BunnyTail.XamlProperty.props" Pack="true" PackagePath="build\$(PackageId).props" Visible="false" />
+    <None Include="..\BunnyTail.XamlProperty.targets" Pack="true" PackagePath="build\$(PackageId).targets" Visible="false" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -33,7 +33,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
-    <PackageReference Include="SourceGenerateHelper" Version="1.28.0" GeneratePathProperty="true" PrivateAssets="all" />
+    <PackageReference Include="SourceGenerateHelper" Version="1.30.0" GeneratePathProperty="true" PrivateAssets="all" />
   </ItemGroup>
 
   <PropertyGroup>

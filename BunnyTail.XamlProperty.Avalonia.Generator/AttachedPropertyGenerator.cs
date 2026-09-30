@@ -16,6 +16,10 @@ using SourceGenerateHelper;
 [Generator]
 public sealed class AttachedPropertyGenerator : IIncrementalGenerator
 {
+    private const string AttributeLabel = "AttachedProperty";
+
+    private const string PropertyAttributeName = "BunnyTail.XamlProperty.StyledPropertyAttribute";
+
     private const string AttributeName = "BunnyTail.XamlProperty.AttachedPropertyAttribute";
 
     private const string AttributeSource =
@@ -71,9 +75,13 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
                 static (context, _) => GetAttachedPropertyModel(context))
             .Collect();
 
+        var treeProvider = context.ForAttributeWithMetadataNameSyntaxTrees(
+            AttributeName,
+            static (syntax, _) => IsMethodSyntax(syntax));
+
         context.RegisterSourceOutput(
-            propertyProvider,
-            static (context, properties) => ReportDiagnostics(context, properties));
+            propertyProvider.Combine(treeProvider),
+            static (context, provider) => ReportDiagnostics(context, provider.Left, provider.Right));
 
         var typeProvider = propertyProvider.SelectMany(static (properties, _) => SelectTypeModel(properties));
 
@@ -82,15 +90,49 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             static (context, type) => Execute(context, type));
     }
 
-    private static ImmutableArray<AttachedTypeModel> SelectTypeModel(ImmutableArray<Result<AttachedPropertyModel>> properties) =>
-        [.. properties
+    private static ImmutableArray<AttachedTypeModel> SelectTypeModel(ImmutableArray<Result<AttachedPropertyModel>> properties)
+    {
+        var collisions = new HashSet<string>(FindHintNameCollisions(properties).Select(static x => x.HintName), StringComparer.Ordinal);
+        return [.. properties
             .SelectValue()
+            .Where(x => !collisions.Contains(MakeHintName(x.Namespace, x.ContainingTypes, x.ClassName)))
             .GroupBy(static x => new { x.Namespace, x.ClassName, x.ContainingTypes })
             .Select(static x => new AttachedTypeModel(
                 x.Key.Namespace,
                 x.Key.ClassName,
                 x.Key.ContainingTypes,
                 new EquatableArray<AttachedPropertyModel>(x)))];
+    }
+
+    private static string MakeHintName(string ns, EquatableArray<ContainingTypeModel> containingTypes, string className) =>
+        HintNameBuilder.BuildWithExtension(ns, ".Attached.g.cs", [.. containingTypes.Select(static x => x.ClassName), className]);
+
+    private static string MakeDisplayName(string ns, EquatableArray<ContainingTypeModel> containingTypes, string className) =>
+        (String.IsNullOrEmpty(ns) ? string.Empty : ns + ".") + String.Join(".", containingTypes.Select(static x => x.ClassName).Append(className));
+
+    // Hint names are compared ignoring case, so of the types whose names differ only in case, only the first is generated
+    private static List<(string HintName, string Name, string Other)> FindHintNameCollisions(ImmutableArray<Result<AttachedPropertyModel>> properties)
+    {
+        var collisions = new List<(string HintName, string Name, string Other)>();
+        var firsts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var reported = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (hintName, displayName) in properties
+            .SelectValue()
+            .Select(static x => (HintName: MakeHintName(x.Namespace, x.ContainingTypes, x.ClassName), DisplayName: MakeDisplayName(x.Namespace, x.ContainingTypes, x.ClassName)))
+            .OrderBy(static x => x.HintName, StringComparer.Ordinal))
+        {
+            if (!firsts.TryGetValue(hintName, out var first))
+            {
+                firsts.Add(hintName, displayName);
+            }
+            else if ((first != displayName) && reported.Add(hintName))
+            {
+                collisions.Add((hintName, displayName, first));
+            }
+        }
+
+        return collisions;
+    }
 
     // ------------------------------------------------------------
     // Parser
@@ -107,27 +149,28 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             return Results.Errors<AttachedPropertyModel>();
         }
 
-        var location = syntax.GetLocation();
+        var location = syntax.Identifier.GetLocation();
+        var compilation = context.SemanticModel.Compilation;
+        var diagnostics = new List<DiagnosticInfo>();
 
         // Validate accessor definition
         if (!symbol.IsStatic ||
             !symbol.IsPartialDefinition ||
             symbol.IsGenericMethod ||
             symbol.ReturnsVoid ||
+            symbol.ReturnsByRef ||
+            symbol.ReturnsByRefReadonly ||
             (symbol.Parameters.Length != 1) ||
             !symbol.Name.StartsWith(GetPrefix, StringComparison.Ordinal) ||
             (symbol.Name.Length == GetPrefix.Length))
         {
-            return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.InvalidAccessorDefinition, location, symbol.Name));
+            return CreateFallback(symbol, syntax, new DiagnosticInfo(Diagnostics.InvalidAccessorDefinition, location, symbol.Name));
         }
 
-        // Validate containing type
-        for (var typeSyntax = syntax.Parent as TypeDeclarationSyntax; typeSyntax is not null; typeSyntax = typeSyntax.Parent as TypeDeclarationSyntax)
+        // Validate containing type (the generated part of a file-local type would be another type)
+        if (!IsExtendable(syntax, symbol.ContainingType))
         {
-            if (!typeSyntax.Modifiers.Any(static x => x.IsKind(SyntaxKind.PartialKeyword)))
-            {
-                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.ContainingTypeNotPartial, location, symbol.Name));
-            }
+            return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.ContainingTypeNotPartial, location, AttributeLabel, symbol.Name));
         }
 
         var containingType = symbol.ContainingType;
@@ -135,7 +178,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         {
             if (type.IsGenericType)
             {
-                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.GenericTypeNotSupported, location, symbol.Name));
+                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.GenericTypeNotSupported, location, AttributeLabel, symbol.Name));
             }
         }
 
@@ -143,7 +186,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         var isAvaloniaObject = false;
         for (var type = targetType; type is not null; type = type.BaseType)
         {
-            if (type.ToDisplayString() == AvaloniaObjectTypeName)
+            if (type.HasFullyQualifiedMetadataName(AvaloniaObjectTypeName))
             {
                 isAvaloniaObject = true;
                 break;
@@ -152,27 +195,44 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
 
         if (!isAvaloniaObject)
         {
-            return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.InvalidTargetType, location, symbol.Name));
+            return CreateFallback(symbol, syntax, new DiagnosticInfo(Diagnostics.InvalidTargetType, location, symbol.Name));
         }
 
         var propertyName = symbol.Name.Substring(GetPrefix.Length);
 
-        // Setter
-        var setMethodName = default(string);
-        var setAccessibility = Accessibility.NotApplicable;
+        // Setter (a partial Set method that does not match the getter gets a throwing implementation)
+        var setSignature = default(string);
+        var setTargetName = string.Empty;
+        var setValueName = string.Empty;
+        var setTargetNullable = false;
+        var setValueNullable = false;
+        var isSetFallback = false;
         foreach (var method in containingType.GetMembers(SetPrefix + propertyName).OfType<IMethodSymbol>())
         {
-            if (method.IsStatic &&
-                method.IsPartialDefinition &&
-                method.ReturnsVoid &&
-                (method.Parameters.Length == 2) &&
-                SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, targetType) &&
-                SymbolEqualityComparer.Default.Equals(method.Parameters[1].Type, symbol.ReturnType))
+            if (!method.IsPartialDefinition || (method.PartialImplementationPart is not null) ||
+                (method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax setSyntax))
             {
-                setMethodName = method.Name;
-                setAccessibility = method.DeclaredAccessibility;
+                continue;
+            }
+
+            setSignature = method.GetImplementationSignature(setSyntax);
+            if (!method.IsStatic ||
+                method.IsGenericMethod ||
+                !method.ReturnsVoid ||
+                (method.Parameters.Length != 2) ||
+                !compilation.HasIdentityConversion(method.Parameters[0].Type, targetType) ||
+                !compilation.HasIdentityConversion(method.Parameters[1].Type, symbol.ReturnType))
+            {
+                diagnostics.Add(new DiagnosticInfo(Diagnostics.InvalidSetterDefinition, location, method.Name));
+                isSetFallback = true;
                 break;
             }
+
+            setTargetName = CSharpIdentifier.Escape(method.Parameters[0].Name);
+            setValueName = CSharpIdentifier.Escape(method.Parameters[1].Name);
+            setTargetNullable = method.Parameters[0].NullableAnnotation == NullableAnnotation.Annotated;
+            setValueNullable = method.Parameters[1].NullableAnnotation == NullableAnnotation.Annotated;
+            break;
         }
 
         // Parse attribute
@@ -203,32 +263,50 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             }
         }
 
-        // Default value
+        // Default value (an invalid one is reported, and the value is left out of the generated code)
         var defaultValueCount = (defaultValue.HasValue ? 1 : 0) +
                                 (String.IsNullOrEmpty(defaultValueExpression) ? 0 : 1) +
                                 (String.IsNullOrEmpty(defaultValueMember) ? 0 : 1);
+        var defaultValueLiteral = default(string);
+        var usings = Array.Empty<string>();
         if (defaultValueCount > 1)
         {
-            return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.DefaultValueConflict, location, symbol.Name));
+            diagnostics.Add(new DiagnosticInfo(Diagnostics.DefaultValueConflict, location, AttributeLabel, symbol.Name));
         }
-
-        var defaultValueLiteral = defaultValueExpression;
-        if (defaultValue.HasValue)
+        else if (defaultValue.HasValue)
         {
-            defaultValueLiteral = defaultValue.Value.ToCSharpExpression(symbol.ReturnType);
+            // The value must convert to the property type implicitly, so 1.5 for int and null for a value type are errors
+            defaultValueLiteral = defaultValue.Value.TryToCSharpExpression(symbol.ReturnType, context.SemanticModel, syntax.SpanStart, out _)
+                ? defaultValue.Value.ToCSharpExpression(symbol.ReturnType)
+                : null;
             if (defaultValueLiteral is null)
             {
-                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.InvalidDefaultValue, location, symbol.Name));
+                diagnostics.Add(new DiagnosticInfo(Diagnostics.InvalidDefaultValue, location, AttributeLabel, symbol.Name));
             }
         }
         else if (!String.IsNullOrEmpty(defaultValueMember))
         {
-            if (!IsDefaultValueMember(containingType, defaultValueMember!, symbol.ReturnType))
+            if (IsDefaultValueMember(compilation, containingType, defaultValueMember!, symbol.ReturnType))
             {
-                return Results.Error<AttachedPropertyModel>(new DiagnosticInfo(Diagnostics.InvalidDefaultValueMember, location, defaultValueMember!));
+                defaultValueLiteral = defaultValueMember;
             }
-
-            defaultValueLiteral = defaultValueMember;
+            else
+            {
+                diagnostics.Add(new DiagnosticInfo(Diagnostics.InvalidDefaultValueMember, location, AttributeLabel, defaultValueMember!));
+            }
+        }
+        else if (!String.IsNullOrEmpty(defaultValueExpression))
+        {
+            // The expression is bound where the attribute is written, and the usings in effect there are copied
+            if (IsDefaultValueExpression(context.SemanticModel, syntax.SpanStart, defaultValueExpression!, symbol.ReturnType))
+            {
+                defaultValueLiteral = defaultValueExpression;
+                usings = CollectUsings(context.SemanticModel, syntax);
+            }
+            else
+            {
+                diagnostics.Add(new DiagnosticInfo(Diagnostics.InvalidDefaultValue, location, AttributeLabel, symbol.Name));
+            }
         }
 
         // Model
@@ -240,24 +318,51 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             .Select(static x => new ContainingTypeModel(x.GetClassName(), x.GetDeclarationKeyword()))
             .ToArray();
 
-        return Results.Success(new AttachedPropertyModel(
+        var fieldName = propertyName + "Property";
+
+        // A field name taken by another member gets only a throwing implementation
+        var fieldConflict = HasFieldConflict(
+            containingType,
+            fieldName,
+            containingType.GetMembers(symbol.Name)
+                .Where(x => !SymbolEqualityComparer.Default.Equals(x, symbol) && x.HasAttribute(AttributeName))
+                .Concat(containingType.GetMembers(propertyName).Where(static x => x.HasAttribute(PropertyAttributeName))),
+            syntax);
+        if (fieldConflict)
+        {
+            diagnostics.Add(new DiagnosticInfo(Diagnostics.FieldNameConflict, location, AttributeLabel, fieldName));
+        }
+
+        var attachedModel = new AttachedPropertyModel(
             ns,
             containingType.GetClassName(),
             new EquatableArray<ContainingTypeModel>(containingTypes),
+            containingType.GetDeclarationKeyword(),
             containingType.IsStatic,
             symbol.DeclaredAccessibility,
-            symbol.Name,
-            setMethodName,
-            setAccessibility,
+            symbol.GetImplementationSignature(syntax),
+            CSharpIdentifier.Escape(symbol.Parameters[0].Name),
+            setSignature,
+            setTargetName,
+            setValueName,
             propertyName,
-            targetType.ToDisplayString(TypeDisplayFormat),
+            HidesBaseMember(compilation, containingType, fieldName, symbol.Name),
+            targetType.WithNullableAnnotation(NullableAnnotation.NotAnnotated).ToDisplayString(TypeDisplayFormat),
             symbol.ReturnType.ToDisplayString(TypeDisplayFormat),
             defaultValueLiteral,
             defaultBindingMode,
-            inherits));
+            inherits,
+            new EquatableArray<string>(usings),
+            fieldConflict,
+            isSetFallback,
+            symbol.Parameters[0].NullableAnnotation == NullableAnnotation.Annotated,
+            setTargetNullable,
+            setValueNullable);
+
+        return new Result<AttachedPropertyModel>(attachedModel, new EquatableArray<DiagnosticInfo>(diagnostics));
     }
 
-    private static bool IsDefaultValueMember(INamedTypeSymbol containingType, string memberName, ITypeSymbol valueType)
+    private static bool IsDefaultValueMember(Compilation compilation, INamedTypeSymbol containingType, string memberName, ITypeSymbol valueType)
     {
         foreach (var member in containingType.GetMembers(memberName))
         {
@@ -267,9 +372,41 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
                 IPropertySymbol { IsStatic: true, GetMethod: not null } property => property.Type,
                 _ => null
             };
-            if ((memberType is not null) && SymbolEqualityComparer.Default.Equals(memberType, valueType))
+            if ((memberType is not null) && IsDefaultValueType(compilation, memberType, valueType))
             {
                 return true;
+            }
+        }
+
+        return false;
+    }
+
+    // The value is boxed as it is, so a conversion must keep its runtime type
+    private static bool IsDefaultValueType(Compilation compilation, ITypeSymbol valueType, ITypeSymbol propertyType)
+    {
+        var conversion = compilation.ClassifyConversion(valueType, propertyType);
+        return conversion.IsImplicit && (conversion.IsIdentity || conversion.IsReference || conversion.IsBoxing || conversion.IsNullable);
+    }
+
+    // The field generated for a base type is not in the compilation, so the member it is generated for is looked at as well
+    private static bool HidesBaseMember(Compilation compilation, INamedTypeSymbol containingType, string fieldName, string sourceName)
+    {
+        for (var type = containingType.BaseType; type is not null; type = type.BaseType)
+        {
+            foreach (var member in type.GetMembers(fieldName))
+            {
+                if (compilation.IsSymbolAccessibleWithin(member, containingType))
+                {
+                    return true;
+                }
+            }
+
+            foreach (var member in type.GetMembers(sourceName))
+            {
+                if (member.HasAttribute(AttributeName) && compilation.IsSymbolAccessibleWithin(member, containingType))
+                {
+                    return true;
+                }
             }
         }
 
@@ -280,13 +417,12 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
     // Generator
     // ------------------------------------------------------------
 
-    private static void ReportDiagnostics(SourceProductionContext context, ImmutableArray<Result<AttachedPropertyModel>> properties)
-    {
-        foreach (var info in properties.SelectError())
-        {
-            context.ReportDiagnostic(info);
-        }
-    }
+    private static void ReportDiagnostics(SourceProductionContext context, ImmutableArray<Result<AttachedPropertyModel>> properties, ImmutableArray<SyntaxTree> trees) =>
+        context.ReportDiagnostics(
+            properties.SelectError()
+                .Concat(FindHintNameCollisions(properties).Select(static x => new DiagnosticInfo(Diagnostics.HintNameCollision, (Location?)null, AttributeLabel, x.Name, x.Other)))
+                .Distinct(),
+            trees);
 
     private static void Execute(SourceProductionContext context, AttachedTypeModel type)
     {
@@ -295,12 +431,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         var builder = new SourceBuilder();
         BuildSource(builder, type);
 
-        context.AddSource(
-            HintNameBuilder.BuildWithExtension(
-                type.Namespace,
-                ".Attached.g.cs",
-                [.. type.ContainingTypes.Select(static x => x.ClassName), type.ClassName]),
-            builder);
+        context.AddSource(MakeHintName(type.Namespace, type.ContainingTypes, type.ClassName), builder);
     }
 
     private static void BuildSource(SourceBuilder builder, AttachedTypeModel type)
@@ -309,7 +440,19 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
 
         builder.AutoGenerated();
         builder.EnableNullable();
+        builder.Disable("CS0612, CS0618");
         builder.NewLine();
+
+        var usings = type.Properties.SelectMany(static x => x.Usings).Distinct().ToList();
+        if (usings.Count > 0)
+        {
+            foreach (var line in usings)
+            {
+                builder.AppendLine(line);
+            }
+
+            builder.NewLine();
+        }
 
         if (!String.IsNullOrEmpty(type.Namespace))
         {
@@ -335,7 +478,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             builder.Append("static ");
         }
 
-        builder.Append("partial class ").Append(type.ClassName).NewLine();
+        builder.Append("partial ").Append(type.Properties[0].TypeKeyword).Append(' ').Append(type.ClassName).NewLine();
         builder.BeginScope();
 
         var first = true;
@@ -363,10 +506,30 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
 
     private static void BuildProperty(SourceBuilder builder, string className, AttachedPropertyModel property)
     {
+        // Without the field, the accessors only throw
+        if (property.IsFallback)
+        {
+            builder.Indent().Append(property.GetSignature).NewLine();
+            builder.BeginScope();
+            builder.Indent().Append("throw new global::System.InvalidOperationException();").NewLine();
+            builder.EndScope();
+            if (property.SetSignature is not null)
+            {
+                builder.NewLine();
+                builder.Indent().Append(property.SetSignature).NewLine();
+                builder.BeginScope();
+                builder.Indent().Append("throw new global::System.InvalidOperationException();").NewLine();
+                builder.EndScope();
+            }
+
+            return;
+        }
+
         // field
         builder
             .Indent()
             .Append(property.GetAccessibility.ToText())
+            .Append(property.IsNewField ? " new" : string.Empty)
             .Append(" static readonly ")
             .Append(AttachedPropertyTypeName)
             .Append("<")
@@ -393,37 +556,39 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         builder.Append(");").NewLine();
         builder.NewLine();
 
-        // getter
+        // getter (the implementation repeats the declaration of the definition)
         builder
             .Indent()
-            .Append(property.GetAccessibility.ToText())
-            .Append(" static partial ")
-            .Append(property.ValueType)
-            .Append(" ")
-            .Append(property.GetMethodName)
-            .Append("(")
-            .Append(property.TargetType)
-            .Append(" obj) => obj.GetValue(")
+            .Append(property.GetSignature)
+            .Append(" => ")
+            .Append(property.GetParameterName)
+            .Append(property.GetTargetNullable ? "!.GetValue(" : ".GetValue(")
             .Append(property.PropertyName)
             .Append("Property);")
             .NewLine();
 
         // setter
-        if (property.SetMethodName is not null)
+        if (property.IsSetFallback)
+        {
+            builder.NewLine();
+            builder.Indent().Append(property.SetSignature!).NewLine();
+            builder.BeginScope();
+            builder.Indent().Append("throw new global::System.InvalidOperationException();").NewLine();
+            builder.EndScope();
+        }
+        else if (property.SetSignature is not null)
         {
             builder.NewLine();
             builder
                 .Indent()
-                .Append(property.SetAccessibility.ToText())
-                .Append(" static partial void ")
-                .Append(property.SetMethodName)
-                .Append("(")
-                .Append(property.TargetType)
-                .Append(" obj, ")
-                .Append(property.ValueType)
-                .Append(" value) => obj.SetValue(")
+                .Append(property.SetSignature)
+                .Append(" => ")
+                .Append(property.SetTargetName)
+                .Append(property.SetTargetNullable ? "!.SetValue(" : ".SetValue(")
                 .Append(property.PropertyName)
-                .Append("Property, value);")
+                .Append("Property, ")
+                .Append(property.SetValueName)
+                .Append(property.SetValueNullable ? "!);" : ");")
                 .NewLine();
         }
     }
@@ -448,5 +613,166 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
         }
 
         return arguments;
+    }
+
+    // ------------------------------------------------------------
+    // Helper
+    // ------------------------------------------------------------
+
+    // A partial definition of a wrong shape gets a throwing implementation (with its partial Set method), so that the error is reported alone
+    private static Result<AttachedPropertyModel> CreateFallback(IMethodSymbol symbol, MethodDeclarationSyntax syntax, DiagnosticInfo error)
+    {
+        var containingType = symbol.ContainingType;
+        if (!symbol.IsPartialDefinition || (symbol.PartialImplementationPart is not null) || !IsExtendable(syntax, containingType))
+        {
+            return Results.Error<AttachedPropertyModel>(error);
+        }
+
+        var setSignature = default(string);
+        if (symbol.Name.StartsWith(GetPrefix, StringComparison.Ordinal))
+        {
+            foreach (var method in containingType.GetMembers(SetPrefix + symbol.Name.Substring(GetPrefix.Length)).OfType<IMethodSymbol>())
+            {
+                if (method.IsPartialDefinition && (method.PartialImplementationPart is null) &&
+                    (method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is MethodDeclarationSyntax setSyntax))
+                {
+                    setSignature = method.GetImplementationSignature(setSyntax);
+                    break;
+                }
+            }
+        }
+
+        var ns = String.IsNullOrEmpty(containingType.ContainingNamespace.Name)
+            ? string.Empty
+            : containingType.ContainingNamespace.ToDisplayString();
+        var containingTypes = containingType.GetContainingTypes()
+            .Select(static x => new ContainingTypeModel(x.GetClassName(), x.GetDeclarationKeyword()))
+            .ToArray();
+
+        return new Result<AttachedPropertyModel>(
+            new AttachedPropertyModel(
+                ns,
+                containingType.GetClassName(),
+                new EquatableArray<ContainingTypeModel>(containingTypes),
+                containingType.GetDeclarationKeyword(),
+                containingType.IsStatic,
+                symbol.DeclaredAccessibility,
+                symbol.GetImplementationSignature(syntax),
+                string.Empty,
+                setSignature,
+                string.Empty,
+                string.Empty,
+                symbol.Name,
+                false,
+                string.Empty,
+                string.Empty,
+                null,
+                null,
+                false,
+                new EquatableArray<string>([]),
+                true,
+                true,
+                false,
+                false,
+                false),
+            new EquatableArray<DiagnosticInfo>([error]));
+    }
+
+    private static bool IsExtendable(SyntaxNode syntax, INamedTypeSymbol containingType)
+    {
+        for (var typeSyntax = syntax.Parent as TypeDeclarationSyntax; typeSyntax is not null; typeSyntax = typeSyntax.Parent as TypeDeclarationSyntax)
+        {
+            if (!typeSyntax.Modifiers.Any(static x => x.IsKind(SyntaxKind.PartialKeyword)))
+            {
+                return false;
+            }
+        }
+
+        for (var type = containingType; type is not null; type = type.ContainingType)
+        {
+            if (type.IsFileLocal)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // The expression must convert to the value type where the attribute is written
+    private static bool IsDefaultValueExpression(SemanticModel semanticModel, int position, string text, ITypeSymbol valueType)
+    {
+        var expression = SyntaxFactory.ParseExpression(text);
+        if (expression.ContainsDiagnostics)
+        {
+            return false;
+        }
+
+        var conversion = semanticModel.ClassifyConversion(position, expression, valueType);
+        return conversion.Exists && conversion.IsImplicit;
+    }
+
+    // The usings in effect at the declaration, written to the generated file with their targets fully qualified
+    private static string[] CollectUsings(SemanticModel semanticModel, SyntaxNode syntax)
+    {
+        var usings = new List<string>();
+        foreach (var node in syntax.AncestorsAndSelf())
+        {
+            var directives = node switch
+            {
+                CompilationUnitSyntax unit => unit.Usings,
+                BaseNamespaceDeclarationSyntax ns => ns.Usings,
+                _ => default
+            };
+            foreach (var directive in directives)
+            {
+                if (!directive.GlobalKeyword.IsKind(SyntaxKind.None))
+                {
+                    continue;
+                }
+
+                var line = directive switch
+                {
+                    { Alias: not null } => semanticModel.GetDeclaredSymbol(directive) is { } alias
+                        ? $"using {directive.Alias.Name.Identifier.Text} = {alias.Target.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)};"
+                        : null,
+                    _ => semanticModel.GetSymbolInfo(directive.NamespaceOrType).Symbol is { } target
+                        ? $"using {(directive.StaticKeyword.IsKind(SyntaxKind.None) ? string.Empty : "static ")}{target.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)};"
+                        : null
+                };
+                if ((line is not null) && !usings.Contains(line))
+                {
+                    usings.Add(line);
+                }
+            }
+        }
+
+        return [.. usings];
+    }
+
+    // The field would clash with a member of the user, or with the field of a property with the same name declared earlier
+    private static bool HasFieldConflict(INamedTypeSymbol containingType, string fieldName, IEnumerable<ISymbol> others, SyntaxNode syntax)
+    {
+        if (!containingType.GetMembers(fieldName).IsEmpty)
+        {
+            return true;
+        }
+
+        foreach (var other in others)
+        {
+            var location = other.Locations.FirstOrDefault(static x => x.IsInSource);
+            if (location?.SourceTree is null)
+            {
+                continue;
+            }
+
+            var order = String.CompareOrdinal(location.SourceTree.FilePath, syntax.SyntaxTree.FilePath);
+            if ((order < 0) || ((order == 0) && (location.SourceSpan.Start < syntax.SpanStart)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
