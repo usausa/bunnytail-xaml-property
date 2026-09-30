@@ -114,7 +114,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
     private static string MakeDisplayName(string ns, EquatableArray<ContainingTypeModel> containingTypes, string className) =>
         (String.IsNullOrEmpty(ns) ? string.Empty : ns + ".") + String.Join(".", containingTypes.Select(static x => x.ClassName).Append(className));
 
-    // Hint names are compared ignoring case, so of the types whose names differ only in case, only the first is generated
     private static List<(string HintName, string Name, string Other)> FindHintNameCollisions(ImmutableArray<Result<PropertyModel>> properties)
     {
         var collisions = new List<(string HintName, string Name, string Other)>();
@@ -175,7 +174,7 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
             return Results.Error<PropertyModel>(new DiagnosticInfo(Diagnostics.InvalidPropertyAccessor, location, symbol.Name));
         }
 
-        // Validate containing type (the generated part of a file-local type would be another type)
+        // Validate containing type
         if (!IsExtendable(syntax, symbol.ContainingType))
         {
             return Results.Error<PropertyModel>(new DiagnosticInfo(Diagnostics.ContainingTypeNotPartial, location, AttributeLabel, symbol.Name));
@@ -190,14 +189,11 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
             }
         }
 
-        // A struct or a record cannot derive from the property host type
         if ((containingType.TypeKind != TypeKind.Class) || containingType.IsRecord)
         {
             return Results.Error<PropertyModel>(new DiagnosticInfo(Diagnostics.InvalidContainingType, location, symbol.Name));
         }
 
-        // The base type can be declared in another partial declaration, such as one generated from XAML,
-        // so the check is skipped when the type has no explicit base type
         if (containingType.BaseType is { SpecialType: not SpecialType.System_Object } declaredBaseType)
         {
             var isBindableObject = false;
@@ -256,7 +252,7 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
             }
         }
 
-        // Default value (an invalid one is reported, and the value is left out of the generated code)
+        // Default value
         var defaultValueCount = (defaultValue.HasValue ? 1 : 0) +
                                 (String.IsNullOrEmpty(defaultValueExpression) ? 0 : 1) +
                                 (String.IsNullOrEmpty(defaultValueMember) ? 0 : 1);
@@ -268,7 +264,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
         }
         else if (defaultValue.HasValue)
         {
-            // The value must convert to the property type implicitly, so 1.5 for int and null for a value type are errors
             defaultValueLiteral = defaultValue.Value.TryToCSharpExpression(symbol.Type, context.SemanticModel, syntax.SpanStart, out _)
                 ? defaultValue.Value.ToCSharpExpression(symbol.Type)
                 : null;
@@ -290,7 +285,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
         }
         else if (!String.IsNullOrEmpty(defaultValueExpression))
         {
-            // The expression is bound where the attribute is written, and the usings in effect there are copied, and a conversion that changes the boxed type is written as a cast
             if (IsDefaultValueExpression(context.SemanticModel, syntax.SpanStart, defaultValueExpression!, symbol.Type, out var castRequired))
             {
                 defaultValueLiteral = castRequired ? "(" + symbol.Type.ToDisplayString(TypeDisplayFormat) + ")(" + defaultValueExpression + ")" : defaultValueExpression;
@@ -371,7 +365,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
         var fieldName = symbol.Name + "Property";
         var valueType = symbol.Type.ToDisplayString(TypeDisplayFormat);
 
-        // A field name taken by another member gets only a throwing implementation
         var fieldConflict = HasFieldConflict(
             containingType,
             fieldName,
@@ -419,7 +412,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
                 continue;
             }
 
-            // A method that matches BindingPropertyChangedDelegate is used as a method group
             if (method.IsStatic)
             {
                 if ((method.Parameters.Length == 3) &&
@@ -474,7 +466,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
                 continue;
             }
 
-            // A method that matches CoerceValueDelegate is used as a method group
             if (method.IsStatic &&
                 (method.Parameters.Length == 2) &&
                 (method.ReturnType.SpecialType == SpecialType.System_Object) &&
@@ -519,7 +510,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
                 continue;
             }
 
-            // A method that matches ValidateValueDelegate is used as a method group
             if (method.IsStatic &&
                 (method.Parameters.Length == 2) &&
                 method.Parameters[0].Type.HasFullyQualifiedMetadataName(BindableObjectTypeName) &&
@@ -548,12 +538,9 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
             : (null, new DiagnosticInfo(Diagnostics.CallbackMethodNotFound, location, AttributeLabel, methodName));
     }
 
-    // The overloads that the name finds in the type as C# looks it up, where a member of another kind such as a delegate
-    // field hides the base methods of the same name
     private static IEnumerable<IMethodSymbol> EnumerateCallbackMethods(SemanticModel semanticModel, int position, INamedTypeSymbol containingType, string methodName) =>
         semanticModel.LookupSymbols(position, containingType, methodName).OfType<IMethodSymbol>();
 
-    // A default value member is a static field or property of the property type
     private static bool IsDefaultValueMember(Compilation compilation, INamedTypeSymbol containingType, string memberName, ITypeSymbol propertyType)
     {
         for (var type = containingType; type is not null; type = type.BaseType)
@@ -589,14 +576,12 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
         return false;
     }
 
-    // The value is boxed as it is, so a conversion must keep its runtime type
     private static bool IsDefaultValueType(Compilation compilation, ITypeSymbol valueType, ITypeSymbol propertyType)
     {
         var conversion = compilation.ClassifyConversion(valueType, propertyType);
         return conversion.IsImplicit && (conversion.IsIdentity || conversion.IsReference || conversion.IsBoxing || conversion.IsNullable);
     }
 
-    // The field generated for a base type is not in the compilation, so the member it is generated for is looked at as well
     private static bool HidesBaseMember(Compilation compilation, INamedTypeSymbol containingType, string fieldName, string sourceName)
     {
         for (var type = containingType.BaseType; type is not null; type = type.BaseType)
@@ -718,7 +703,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
 
     private static void BuildProperty(SourceBuilder builder, string className, PropertyModel property)
     {
-        // Without the field, the property only throws
         if (property.IsFallback)
         {
             builder
@@ -760,7 +744,7 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
         builder.Append(");").NewLine();
         builder.NewLine();
 
-        // property (the implementation repeats the declaration of the definition)
+        // property
         builder
             .Indent()
             .Append(property.Signature)
@@ -875,7 +859,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
         return true;
     }
 
-    // The expression must convert to the value type where the attribute is written
     private static bool IsDefaultValueExpression(SemanticModel semanticModel, int position, string text, ITypeSymbol valueType, out bool castRequired)
     {
         castRequired = false;
@@ -895,7 +878,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
         return true;
     }
 
-    // The usings in effect at the declaration, written to the generated file with their targets fully qualified
     private static string[] CollectUsings(SemanticModel semanticModel, SyntaxNode syntax)
     {
         var usings = new List<string>();
@@ -933,7 +915,6 @@ public sealed class BindablePropertyGenerator : IIncrementalGenerator
         return [.. usings];
     }
 
-    // The field would clash with a member of the user, or with the field of a property with the same name declared earlier
     private static bool HasFieldConflict(INamedTypeSymbol containingType, string fieldName, IEnumerable<ISymbol> others, SyntaxNode syntax)
     {
         if (!containingType.GetMembers(fieldName).IsEmpty)
