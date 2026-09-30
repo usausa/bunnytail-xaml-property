@@ -306,7 +306,7 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
             }
         }
 
-        // Callback (an invalid one is reported, and left out of the generated code)
+        // Callback
         if (!String.IsNullOrEmpty(propertyChangedName) &&
             !IsPropertyChangedMethod(context.SemanticModel, syntax.SpanStart, containingType, propertyChangedName!, out var found))
         {
