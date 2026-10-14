@@ -3,36 +3,11 @@ namespace BunnyTail.XamlProperty;
 public sealed class DiagnosticTests
 {
     // ------------------------------------------------------------
-    // Property definition
+    // Definition (00xx)
     // ------------------------------------------------------------
 
     [Fact]
-    public void Btxp0001NotPartialEmitsDiagnostic()
-    {
-        // Arrange
-        const string source =
-            """
-            using BunnyTail.XamlProperty;
-            using System.Windows;
-
-            namespace Test;
-
-            public partial class TestElement : DependencyObject
-            {
-                [DependencyProperty]
-                public string? Text { get; set; }
-            }
-            """;
-
-        // Act
-        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
-
-        // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0001");
-    }
-
-    [Fact]
-    public void Btxp0002StaticPropertyEmitsDiagnostic()
+    public void Btxp0001StaticPropertyEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -46,6 +21,31 @@ public sealed class DiagnosticTests
             {
                 [DependencyProperty]
                 public static partial string? Text { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
+
+        // Assert
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0001");
+    }
+
+    [Fact]
+    public void Btxp0002NotPartialEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using System.Windows;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty]
+                public string? Text { get; set; }
             }
             """;
 
@@ -82,11 +82,11 @@ public sealed class DiagnosticTests
     }
 
     // ------------------------------------------------------------
-    // Containing type
+    // Type (01xx)
     // ------------------------------------------------------------
 
     [Fact]
-    public void Btxp0004ContainingTypeNotPartialEmitsDiagnostic()
+    public void Btxp0101ContainingTypeNotPartialEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -107,11 +107,36 @@ public sealed class DiagnosticTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0004");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0101");
     }
 
     [Fact]
-    public void Btxp0005NotDependencyObjectEmitsDiagnostic()
+    public void Btxp0102GenericTypeEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using System.Windows;
+
+            namespace Test;
+
+            public partial class TestElement<T> : DependencyObject
+            {
+                [DependencyProperty]
+                public partial string? Text { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
+
+        // Assert
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0102");
+    }
+
+    [Fact]
+    public void Btxp0103NotDependencyObjectEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -135,7 +160,7 @@ public sealed class DiagnosticTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0005");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0103");
     }
 
     [Fact]
@@ -160,40 +185,15 @@ public sealed class DiagnosticTests
         var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
 
         // Assert
-        Assert.DoesNotContain(diagnostics, static x => x.Id == "BTXP0005");
-    }
-
-    [Fact]
-    public void Btxp0006GenericTypeEmitsDiagnostic()
-    {
-        // Arrange
-        const string source =
-            """
-            using BunnyTail.XamlProperty;
-            using System.Windows;
-
-            namespace Test;
-
-            public partial class TestElement<T> : DependencyObject
-            {
-                [DependencyProperty]
-                public partial string? Text { get; set; }
-            }
-            """;
-
-        // Act
-        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
-
-        // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0006");
+        Assert.DoesNotContain(diagnostics, static x => x.Id == "BTXP0103");
     }
 
     // ------------------------------------------------------------
-    // Attribute argument
+    // Attribute argument (02xx)
     // ------------------------------------------------------------
 
     [Fact]
-    public void Btxp0007DefaultValueConflictEmitsDiagnostic()
+    public void Btxp0201DefaultValueConflictEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -214,11 +214,63 @@ public sealed class DiagnosticTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0007");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0201");
     }
 
     [Fact]
-    public void Btxp0008InaccessibleBaseCallbackEmitsDiagnostic()
+    public void Btxp0202InvalidDefaultValueEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using System.Windows;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty(DefaultValue = new int[] { 1, 2 })]
+                public partial int[]? Values { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
+
+        // Assert
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0202");
+    }
+
+    [Fact]
+    public void Btxp0203InvalidDefaultValueMemberEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using System.Windows;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                private static readonly int DefaultText = 1;
+
+                [DependencyProperty(DefaultValueMember = nameof(DefaultText))]
+                public partial string? Text { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
+
+        // Assert
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0203");
+    }
+
+    [Fact]
+    public void Btxp0204InaccessibleBaseCallbackEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -246,11 +298,11 @@ public sealed class DiagnosticTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0008");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0204");
     }
 
     [Fact]
-    public void Btxp0008CallbackNotFoundEmitsDiagnostic()
+    public void Btxp0204CallbackNotFoundEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -271,11 +323,11 @@ public sealed class DiagnosticTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0008");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0204");
     }
 
     [Fact]
-    public void Btxp0009InvalidCallbackSignatureEmitsDiagnostic()
+    public void Btxp0205InvalidCallbackSignatureEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -300,11 +352,11 @@ public sealed class DiagnosticTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0009");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0205");
     }
 
     [Fact]
-    public void Btxp0009NonStaticValidateEmitsDiagnostic()
+    public void Btxp0205NonStaticValidateEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -327,59 +379,7 @@ public sealed class DiagnosticTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0009");
-    }
-
-    [Fact]
-    public void Btxp0010InvalidDefaultValueEmitsDiagnostic()
-    {
-        // Arrange
-        const string source =
-            """
-            using BunnyTail.XamlProperty;
-            using System.Windows;
-
-            namespace Test;
-
-            public partial class TestElement : DependencyObject
-            {
-                [DependencyProperty(DefaultValue = new int[] { 1, 2 })]
-                public partial int[]? Values { get; set; }
-            }
-            """;
-
-        // Act
-        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
-
-        // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0010");
-    }
-
-    [Fact]
-    public void Btxp0011InvalidDefaultValueMemberEmitsDiagnostic()
-    {
-        // Arrange
-        const string source =
-            """
-            using BunnyTail.XamlProperty;
-            using System.Windows;
-
-            namespace Test;
-
-            public partial class TestElement : DependencyObject
-            {
-                private static readonly int DefaultText = 1;
-
-                [DependencyProperty(DefaultValueMember = nameof(DefaultText))]
-                public partial string? Text { get; set; }
-            }
-            """;
-
-        // Act
-        var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
-
-        // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0011");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0205");
     }
 
     // ------------------------------------------------------------

@@ -97,7 +97,7 @@ public sealed class GeneratedCodeTests
     }
 
     [Fact]
-    public void Btxp0014SetterNotMatchingGetterEmitsDiagnostic()
+    public void Btxp0005SetterNotMatchingGetterEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -120,11 +120,11 @@ public sealed class GeneratedCodeTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Equal(["BTXP0014"], diagnostics.Select(static x => x.Id));
+        Assert.Equal(["BTXP0005"], diagnostics.Select(static x => x.Id));
     }
 
     [Fact]
-    public void Btxp0005StructOrRecordHostEmitsDiagnostic()
+    public void Btxp0103StructOrRecordHostEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -150,7 +150,7 @@ public sealed class GeneratedCodeTests
         var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
 
         // Assert
-        Assert.Equal(["BTXP0005", "BTXP0005"], diagnostics.Select(static x => x.Id));
+        Assert.Equal(["BTXP0103", "BTXP0103"], diagnostics.Select(static x => x.Id));
     }
 
     // ------------------------------------------------------------
@@ -158,7 +158,7 @@ public sealed class GeneratedCodeTests
     // ------------------------------------------------------------
 
     [Fact]
-    public void Btxp0010DefaultValueNotConvertibleEmitsDiagnostic()
+    public void Btxp0202DefaultValueNotConvertibleEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -185,7 +185,7 @@ public sealed class GeneratedCodeTests
         var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
 
         // Assert
-        Assert.Equal(["BTXP0010", "BTXP0010"], diagnostics.Select(static x => x.Id));
+        Assert.Equal(["BTXP0202", "BTXP0202"], diagnostics.Select(static x => x.Id));
     }
 
     [Fact]
@@ -222,7 +222,7 @@ public sealed class GeneratedCodeTests
 
         // Assert
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("BTXP0011", diagnostic.Id);
+        Assert.Equal("BTXP0203", diagnostic.Id);
         Assert.Contains("DefaultCount", diagnostic.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
     }
 
@@ -231,7 +231,7 @@ public sealed class GeneratedCodeTests
     // ------------------------------------------------------------
 
     [Fact]
-    public void Btxp0008CallbackHiddenByDelegateFieldEmitsDiagnostic()
+    public void Btxp0204CallbackHiddenByDelegateFieldEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -261,7 +261,7 @@ public sealed class GeneratedCodeTests
         var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
 
         // Assert
-        Assert.Equal(["BTXP0008"], diagnostics.Select(static x => x.Id));
+        Assert.Equal(["BTXP0204"], diagnostics.Select(static x => x.Id));
     }
 
     [Fact]
@@ -318,7 +318,7 @@ public sealed class GeneratedCodeTests
 
         // Assert
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("BTXP0001", diagnostic.Id);
+        Assert.Equal("BTXP0002", diagnostic.Id);
         Assert.True(diagnostic.Location.IsInSource);
         Assert.Equal("Text", diagnostic.Location.SourceTree.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan));
     }
@@ -367,7 +367,7 @@ public sealed class GeneratedCodeTests
         var problems = GeneratorTestHelper.GetProblemIds(source);
 
         // Assert
-        Assert.Equal(["BTXP0008"], problems);
+        Assert.Equal(["BTXP0204"], problems);
     }
 
     [Fact]
@@ -392,7 +392,7 @@ public sealed class GeneratedCodeTests
         var problems = GeneratorTestHelper.GetProblemIds(source);
 
         // Assert
-        Assert.Equal(["BTXP0010"], problems);
+        Assert.Equal(["BTXP0202"], problems);
     }
 
     [Fact]
@@ -460,7 +460,7 @@ public sealed class GeneratedCodeTests
         var problems = GeneratorTestHelper.GetProblemIds(source);
 
         // Assert
-        Assert.Equal(["BTXP0010"], problems);
+        Assert.Equal(["BTXP0202"], problems);
     }
 
     [Fact]
@@ -487,7 +487,7 @@ public sealed class GeneratedCodeTests
         var problems = GeneratorTestHelper.GetProblemIds(source);
 
         // Assert
-        Assert.Equal(["BTXP0015"], problems);
+        Assert.Equal(["BTXP0301"], problems);
     }
 
     [Fact]
@@ -515,7 +515,7 @@ public sealed class GeneratedCodeTests
         var problems = GeneratorTestHelper.GetProblemIds(source);
 
         // Assert
-        Assert.Equal(["BTXP0015"], problems);
+        Assert.Equal(["BTXP0301"], problems);
     }
 
     [Fact]
@@ -602,7 +602,7 @@ public sealed class GeneratedCodeTests
 
         // Assert
         // A file-local type can not get the implementation from another file
-        Assert.Equal(["BTXP0004", "CS9248"], problems);
+        Assert.Equal(["BTXP0101", "CS9248"], problems);
     }
 
     [Fact]
@@ -629,7 +629,7 @@ public sealed class GeneratedCodeTests
         var problems = GeneratorTestHelper.GetProblemIds(source);
 
         // Assert
-        Assert.Equal(["BTXP0014"], problems);
+        Assert.Equal(["BTXP0005"], problems);
     }
 
     [Fact]
@@ -654,7 +654,7 @@ public sealed class GeneratedCodeTests
         var problems = GeneratorTestHelper.GetProblemIds(source);
 
         // Assert
-        Assert.Equal(["BTXP0012"], problems);
+        Assert.Equal(["BTXP0004"], problems);
     }
 
     [Fact]
@@ -783,7 +783,7 @@ public sealed class GeneratedCodeTests
         var problems = GeneratorTestHelper.GetProblemIds(source);
 
         // Assert
-        Assert.Contains("BTXP0016", problems);
+        Assert.Contains("BTXP0302", problems);
         Assert.DoesNotContain("CS8785", problems);
     }
 }

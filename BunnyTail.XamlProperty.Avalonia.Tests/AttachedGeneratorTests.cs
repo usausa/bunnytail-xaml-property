@@ -109,7 +109,7 @@ public sealed class AttachedGeneratorTests
     // ------------------------------------------------------------
 
     [Fact]
-    public void Btxp0012InvalidAccessorEmitsDiagnostic()
+    public void Btxp0004InvalidAccessorEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -130,11 +130,11 @@ public sealed class AttachedGeneratorTests
         var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0012");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0004");
     }
 
     [Fact]
-    public void Btxp0013InvalidTargetTypeEmitsDiagnostic()
+    public void Btxp0104InvalidTargetTypeEmitsDiagnostic()
     {
         // Arrange
         const string source =
@@ -154,6 +154,6 @@ public sealed class AttachedGeneratorTests
         var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
 
         // Assert
-        Assert.Contains(diagnostics, static x => x.Id == "BTXP0013");
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0104");
     }
 }
