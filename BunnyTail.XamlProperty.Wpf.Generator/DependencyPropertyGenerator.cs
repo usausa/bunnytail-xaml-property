@@ -98,15 +98,18 @@ public sealed class DependencyPropertyGenerator : IIncrementalGenerator
     private static ImmutableArray<TypeModel> SelectTypeModel(ImmutableArray<Result<PropertyModel>> properties)
     {
         var collisions = new HashSet<string>(FindHintNameCollisions(properties).Select(static x => x.HintName), StringComparer.Ordinal);
-        return [.. properties
-            .SelectValue()
-            .Where(x => !collisions.Contains(MakeHintName(x.Namespace, x.ContainingTypes, x.ClassName)))
-            .GroupBy(static x => new { x.Namespace, x.ClassName, x.ContainingTypes })
-            .Select(static x => new TypeModel(
-                x.Key.Namespace,
-                x.Key.ClassName,
-                x.Key.ContainingTypes,
-                new EquatableArray<PropertyModel>(x)))];
+        return
+        [
+            .. properties
+                .SelectValue()
+                .Where(x => !collisions.Contains(MakeHintName(x.Namespace, x.ContainingTypes, x.ClassName)))
+                .GroupBy(static x => new { x.Namespace, x.ClassName, x.ContainingTypes })
+                .Select(static x => new TypeModel(
+                    x.Key.Namespace,
+                    x.Key.ClassName,
+                    x.Key.ContainingTypes,
+                    new EquatableArray<PropertyModel>(x)))
+        ];
     }
 
     private static string MakeHintName(string ns, EquatableArray<ContainingTypeModel> containingTypes, string className) =>

@@ -93,15 +93,18 @@ public sealed class AttachedPropertyGenerator : IIncrementalGenerator
     private static ImmutableArray<AttachedTypeModel> SelectTypeModel(ImmutableArray<Result<AttachedPropertyModel>> properties)
     {
         var collisions = new HashSet<string>(FindHintNameCollisions(properties).Select(static x => x.HintName), StringComparer.Ordinal);
-        return [.. properties
-            .SelectValue()
-            .Where(x => !collisions.Contains(MakeHintName(x.Namespace, x.ContainingTypes, x.ClassName)))
-            .GroupBy(static x => new { x.Namespace, x.ClassName, x.ContainingTypes })
-            .Select(static x => new AttachedTypeModel(
-                x.Key.Namespace,
-                x.Key.ClassName,
-                x.Key.ContainingTypes,
-                new EquatableArray<AttachedPropertyModel>(x)))];
+        return
+        [
+            .. properties
+                .SelectValue()
+                .Where(x => !collisions.Contains(MakeHintName(x.Namespace, x.ContainingTypes, x.ClassName)))
+                .GroupBy(static x => new { x.Namespace, x.ClassName, x.ContainingTypes })
+                .Select(static x => new AttachedTypeModel(
+                    x.Key.Namespace,
+                    x.Key.ClassName,
+                    x.Key.ContainingTypes,
+                    new EquatableArray<AttachedPropertyModel>(x)))
+        ];
     }
 
     private static string MakeHintName(string ns, EquatableArray<ContainingTypeModel> containingTypes, string className) =>
