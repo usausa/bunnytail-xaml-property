@@ -1,12 +1,13 @@
 # BunnyTail.XamlProperty
 
-Property source generator for WPF, MAUI and Avalonia.
+Property source generator for WPF, WinUI, MAUI and Avalonia.
 
 ## 📦 NuGet
 
 | Package | Note |
 |-|-|
 | [![NuGet](https://img.shields.io/nuget/v/BunnyTail.XamlProperty.Wpf.svg)](https://www.nuget.org/packages/BunnyTail.XamlProperty.Wpf/) | `DependencyProperty` for WPF |
+| [![NuGet](https://img.shields.io/nuget/v/BunnyTail.XamlProperty.WinUI.svg)](https://www.nuget.org/packages/BunnyTail.XamlProperty.WinUI/) | `DependencyProperty` for WinUI |
 | [![NuGet](https://img.shields.io/nuget/v/BunnyTail.XamlProperty.Maui.svg)](https://www.nuget.org/packages/BunnyTail.XamlProperty.Maui/) | `BindableProperty` for MAUI |
 | [![NuGet](https://img.shields.io/nuget/v/BunnyTail.XamlProperty.Avalonia.svg)](https://www.nuget.org/packages/BunnyTail.XamlProperty.Avalonia/) | `StyledProperty` for Avalonia |
 
@@ -26,6 +27,12 @@ public partial class GaugeControl : FrameworkElement
 ```
 
 ```csharp
+// WinUI
+[DependencyProperty(DefaultValue = 0d, PropertyChanged = nameof(OnLevelChanged))]
+public partial double Level { get; set; }
+```
+
+```csharp
 // MAUI
 [BindableProperty(DefaultBindingMode = BindingMode.TwoWay, PropertyChanged = nameof(Invalidate))]
 public partial string? Label { get; set; }
@@ -37,20 +44,21 @@ public partial string? Label { get; set; }
 public partial string? Label { get; set; }
 ```
 
-| Option | Wpf | Maui | Avalonia |
-|-|:-:|:-:|:-:|
-| `DefaultValue` | ✅ | ✅ | ✅ |
-| `DefaultValueExpression` | ✅ | ✅ | ✅ |
-| `DefaultValueMember` | ✅ | ✅ | ✅ |
-| `Options` | ✅ | ❌ | ❌ |
-| `DefaultBindingMode` | ❌ | ✅ | ✅ |
-| `PropertyChanged` | ✅ | ✅ | ❌ |
-| `PropertyChanging` | ❌ | ✅ | ❌ |
-| `Coerce` | ✅ | ✅ | ✅ |
-| `Validate` | ✅ | ✅ | ✅ |
-| `Inherits` | ❌ | ❌ | ✅ |
-| `EnableDataValidation` | ❌ | ❌ | ✅ |
+| Option | Wpf | WinUI | Maui | Avalonia |
+|-|:-:|:-:|:-:|:-:|
+| `DefaultValue` | ✅ | ✅ | ✅ | ✅ |
+| `DefaultValueExpression` | ✅ | ✅ | ✅ | ✅ |
+| `DefaultValueMember` | ✅ | ✅ | ✅ | ✅ |
+| `Options` | ✅ | ❌ | ❌ | ❌ |
+| `DefaultBindingMode` | ❌ | ❌ | ✅ | ✅ |
+| `PropertyChanged` | ✅ | ✅ | ✅ | ❌ |
+| `PropertyChanging` | ❌ | ❌ | ✅ | ❌ |
+| `Coerce` | ✅ | ❌ | ✅ | ✅ |
+| `Validate` | ✅ | ❌ | ✅ | ✅ |
+| `Inherits` | ❌ | ❌ | ❌ | ✅ |
+| `EnableDataValidation` | ❌ | ❌ | ❌ | ✅ |
 
+WinUI does not have `Coerce` and `Validate`, because its dependency property does not support them.
 Avalonia does not have `PropertyChanged`, because it handles property change by overriding `OnPropertyChanged`.
 
 ## 🔗 AttachedProperty
@@ -74,6 +82,7 @@ public static partial class Focus
 | Platform | XAML compilation | Generated property |
 |-|-|:-:|
 | WPF | Markup compiler, after the assembly is built | ✅ |
-| Avalonia | XamlIl, after the assembly is built | ✅ |
+| WinUI | XAML compiler, after a temporary assembly is built | ✅ |
 | MAUI (default) | XamlC, after the assembly is built | ✅ |
 | MAUI (`MauiXamlInflator` is `SourceGen`) | Source generator | ❌ |
+| Avalonia | XamlIl, after the assembly is built | ✅ |

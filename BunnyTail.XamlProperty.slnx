@@ -3,6 +3,7 @@
     <Project Path="BunnyTail.XamlProperty.Wpf.Generator/BunnyTail.XamlProperty.Wpf.Generator.csproj" />
     <Project Path="BunnyTail.XamlProperty.Maui.Generator/BunnyTail.XamlProperty.Maui.Generator.csproj" />
     <Project Path="BunnyTail.XamlProperty.Avalonia.Generator/BunnyTail.XamlProperty.Avalonia.Generator.csproj" />
+    <Project Path="BunnyTail.XamlProperty.WinUI.Generator/BunnyTail.XamlProperty.WinUI.Generator.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
@@ -24,5 +25,6 @@
     <Project Path="BunnyTail.XamlProperty.Wpf.Tests/BunnyTail.XamlProperty.Wpf.Tests.csproj" />
     <Project Path="BunnyTail.XamlProperty.Maui.Tests/BunnyTail.XamlProperty.Maui.Tests.csproj" />
     <Project Path="BunnyTail.XamlProperty.Avalonia.Tests/BunnyTail.XamlProperty.Avalonia.Tests.csproj" />
+    <Project Path="BunnyTail.XamlProperty.WinUI.Tests/BunnyTail.XamlProperty.WinUI.Tests.csproj" />
   </Folder>
 </Solution>

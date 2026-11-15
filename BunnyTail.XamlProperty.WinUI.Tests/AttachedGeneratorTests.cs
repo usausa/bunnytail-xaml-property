@@ -1,0 +1,197 @@
+namespace BunnyTail.XamlProperty;
+
+using Microsoft.CodeAnalysis;
+
+public sealed class AttachedGeneratorTests
+{
+    private const string Source =
+        """
+        using BunnyTail.XamlProperty;
+        using Microsoft.UI.Xaml;
+
+        namespace Test;
+
+        public static partial class Focus
+        {
+            [AttachedProperty(DefaultValue = false)]
+            public static partial bool GetSuppress(DependencyObject obj);
+
+            public static partial void SetSuppress(DependencyObject obj, bool value);
+        }
+        """;
+
+    // ------------------------------------------------------------
+    // Basic
+    // ------------------------------------------------------------
+
+    [Fact]
+    public void AccessorGeneratesFieldAndImplementation()
+    {
+        // Arrange & Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(Source);
+
+        // Assert
+        Assert.Contains("public static readonly global::Microsoft.UI.Xaml.DependencyProperty SuppressProperty = global::Microsoft.UI.Xaml.DependencyProperty.RegisterAttached(", generated, StringComparison.Ordinal);
+        Assert.Contains("\"Suppress\"", generated, StringComparison.Ordinal);
+        Assert.Contains("typeof(bool)", generated, StringComparison.Ordinal);
+        Assert.Contains("typeof(Focus)", generated, StringComparison.Ordinal);
+        Assert.Contains("static partial class Focus", generated, StringComparison.Ordinal);
+        Assert.Contains("public static partial bool GetSuppress(global::Microsoft.UI.Xaml.DependencyObject obj) => (bool)obj.GetValue(SuppressProperty);", generated, StringComparison.Ordinal);
+        Assert.Contains("public static partial void SetSuppress(global::Microsoft.UI.Xaml.DependencyObject obj, bool value) => obj.SetValue(SuppressProperty, value);", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AccessorProducesNoCompilationError()
+    {
+        // Arrange & Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticsAll(Source);
+
+        // Assert
+        Assert.DoesNotContain(diagnostics, static x => x.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void NestedInRecordGeneratesRecordContainingType()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial record Outer
+            {
+                public static partial class Focus
+                {
+                    [AttachedProperty(DefaultValue = false)]
+                    public static partial bool GetSuppress(DependencyObject obj);
+
+                    public static partial void SetSuppress(DependencyObject obj, bool value);
+                }
+            }
+            """;
+
+        // Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(source);
+
+        // Assert
+        Assert.Contains("partial record Outer", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GetterOnlyIsSupported()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public static partial class Focus
+            {
+                [AttachedProperty]
+                public static partial bool GetSuppress(DependencyObject obj);
+            }
+            """;
+
+        // Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(source);
+
+        // Assert
+        Assert.Contains("GetSuppress", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("SetSuppress", generated, StringComparison.Ordinal);
+    }
+
+    // ------------------------------------------------------------
+    // Metadata
+    // ------------------------------------------------------------
+
+    [Fact]
+    public void DefaultValueAndCallbackAreApplied()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public static partial class Focus
+            {
+                [AttachedProperty(DefaultValue = 1d, PropertyChanged = nameof(OnSuppressChanged))]
+                public static partial double GetSuppress(DependencyObject obj);
+
+                public static partial void SetSuppress(DependencyObject obj, double value);
+
+                private static void OnSuppressChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+                {
+                }
+            }
+            """;
+
+        // Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(source);
+
+        // Assert
+        Assert.Contains("new global::Microsoft.UI.Xaml.PropertyMetadata(", generated, StringComparison.Ordinal);
+        Assert.Contains("            OnSuppressChanged));", generated, StringComparison.Ordinal);
+    }
+
+    // ------------------------------------------------------------
+    // Diagnostics
+    // ------------------------------------------------------------
+
+    [Fact]
+    public void Btxp0004InvalidAccessorEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public static partial class Focus
+            {
+                [AttachedProperty]
+                public static partial void GetSuppress(DependencyObject obj);
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
+
+        // Assert
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0004");
+    }
+
+    [Fact]
+    public void Btxp0104InvalidTargetTypeEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+
+            namespace Test;
+
+            public static partial class Focus
+            {
+                [AttachedProperty]
+                public static partial bool GetSuppress(string obj);
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
+
+        // Assert
+        Assert.Contains(diagnostics, static x => x.Id == "BTXP0104");
+    }
+}

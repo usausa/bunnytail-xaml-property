@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BunnyTail.XamlProperty.WinUI.Generator": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\BunnyTail.XamlProperty.WinUI.Tests\\BunnyTail.XamlProperty.WinUI.Tests.csproj"
+    }
+  }
+}

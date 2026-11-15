@@ -1,0 +1,790 @@
+namespace BunnyTail.XamlProperty;
+
+using System.Globalization;
+using System.Reflection;
+
+using BunnyTail.XamlProperty.Generator;
+
+using Microsoft.CodeAnalysis;
+
+public sealed class GeneratedCodeTests
+{
+    // ------------------------------------------------------------
+    // Declaration
+    // ------------------------------------------------------------
+
+    [Fact]
+    public void PropertyDeclarationIsRepeated()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class BaseElement : DependencyObject
+            {
+                [DependencyProperty]
+                public virtual partial string? Title { get; set; }
+
+                public int Tag { get; set; }
+            }
+
+            public partial class TestElement : BaseElement
+            {
+                [DependencyProperty]
+                partial string? Caption { get; set; }
+
+                [DependencyProperty]
+                public sealed override partial string? Title { get; set; }
+
+                [DependencyProperty]
+                public required partial string Header { get; set; }
+
+                [DependencyProperty]
+                public new partial int Tag { get; set; }
+
+                [DependencyProperty]
+                public partial int @class { get; set; }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void AttachedAccessorDeclarationIsRepeated()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public static partial class Attached
+            {
+                [AttachedProperty]
+                public static partial int GetCount(this DependencyObject element);
+
+                static partial void SetCount(this DependencyObject element, int value);
+
+                [AttachedProperty]
+                public static partial string? GetLabel(DependencyObject target);
+
+                public static partial void SetLabel(DependencyObject target, string? value);
+            }
+
+            public partial struct AttachedHost
+            {
+                [AttachedProperty]
+                public static partial int GetValue(DependencyObject obj);
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void Btxp0005SetterNotMatchingGetterEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public static partial class Attached
+            {
+                [AttachedProperty]
+                public static partial int GetCount(DependencyObject obj);
+
+                static partial void SetCount(DependencyObject obj, string value);
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
+
+        // Assert
+        Assert.Equal(["BTXP0005"], diagnostics.Select(static x => x.Id));
+    }
+
+    [Fact]
+    public void Btxp0103StructOrRecordHostEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+
+            namespace Test;
+
+            public partial struct StructHost
+            {
+                [DependencyProperty]
+                public partial int Value { get; set; }
+            }
+
+            public partial record RecordHost
+            {
+                [DependencyProperty]
+                public partial int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
+
+        // Assert
+        Assert.Equal(["BTXP0103", "BTXP0103"], diagnostics.Select(static x => x.Id));
+    }
+
+    // ------------------------------------------------------------
+    // Default value
+    // ------------------------------------------------------------
+
+    [Fact]
+    public void Btxp0202DefaultValueNotConvertibleEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty(DefaultValue = 1.5)]
+                public partial int Truncated { get; set; }
+
+                [DependencyProperty(DefaultValue = null)]
+                public partial int NullForValue { get; set; }
+
+                [DependencyProperty(DefaultValue = 1)]
+                public partial double Widened { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
+
+        // Assert
+        Assert.Equal(["BTXP0202", "BTXP0202"], diagnostics.Select(static x => x.Id));
+    }
+
+    [Fact]
+    public void DefaultValueMemberOfDerivedTypeIsAccepted()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public class Shape;
+
+            public sealed class Circle : Shape;
+
+            public partial class TestElement : DependencyObject
+            {
+                public static readonly Circle DefaultShape = new();
+
+                public const int DefaultCount = 1;
+
+                [DependencyProperty(DefaultValueMember = nameof(DefaultShape))]
+                public partial Shape? Shape { get; set; }
+
+                [DependencyProperty(DefaultValueMember = nameof(DefaultCount))]
+                public partial double Count { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
+
+        // Assert
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("BTXP0203", diagnostic.Id);
+        Assert.Contains("DefaultCount", diagnostic.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+    }
+
+    // ------------------------------------------------------------
+    // Callback
+    // ------------------------------------------------------------
+
+    [Fact]
+    public void Btxp0204CallbackHiddenByDelegateFieldEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using System;
+
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class BaseElement : DependencyObject
+            {
+                protected void OnChanged()
+                {
+                }
+            }
+
+            public partial class TestElement : BaseElement
+            {
+                public new Action OnChanged = static () => { };
+
+                [DependencyProperty(PropertyChanged = nameof(OnChanged))]
+                public partial int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticsWithoutVerify(source);
+
+        // Assert
+        Assert.Equal(["BTXP0204"], diagnostics.Select(static x => x.Id));
+    }
+
+    [Fact]
+    public void CallbackWithDifferentTupleNamesIsAccepted()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty(PropertyChanged = nameof(OnPairChanged))]
+                public partial (int A, int B) Pair { get; set; }
+
+                private void OnPairChanged((int, int) oldValue, (int, int) newValue)
+                {
+                }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    // ------------------------------------------------------------
+    // Reporting
+    // ------------------------------------------------------------
+
+    [Fact]
+    public void DiagnosticIsReportedOnPropertyName()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty]
+                public string? Text { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
+
+        // Assert
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("BTXP0002", diagnostic.Id);
+        Assert.True(diagnostic.Location.IsInSource);
+        Assert.Equal("Text", diagnostic.Location.SourceTree.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan));
+    }
+
+    [Fact]
+    public void ErrorsCannotBeSuppressed()
+    {
+        // Arrange
+        var descriptors = typeof(DependencyPropertyGenerator).Assembly.GetType("BunnyTail.XamlProperty.Generator.Diagnostics", throwOnError: true)!
+            .GetProperties(BindingFlags.Public | BindingFlags.Static)
+            .Where(static x => x.PropertyType == typeof(DiagnosticDescriptor))
+            .Select(static x => (DiagnosticDescriptor)x.GetValue(null)!)
+            .ToList();
+
+        // Assert
+        Assert.All(
+            descriptors.Where(static x => x.DefaultSeverity == DiagnosticSeverity.Error),
+            static x => Assert.Equal([WellKnownDiagnosticTags.NotConfigurable, WellKnownDiagnosticTags.Compiler], x.CustomTags));
+    }
+
+    // ------------------------------------------------------------
+    // Fallback and lookup
+    // ------------------------------------------------------------
+
+    [Fact]
+    public void CallbackNotFoundLeavesOnlyTheDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty(PropertyChanged = "OnMissing")]
+                public partial int Value { get; set; }
+
+                public static object Use() => ValueProperty;
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Equal(["BTXP0204"], problems);
+    }
+
+    [Fact]
+    public void InvalidDefaultValueLeavesOnlyTheDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty(DefaultValue = "text")]
+                public partial int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Equal(["BTXP0202"], problems);
+    }
+
+    [Fact]
+    public void DefaultValueExpressionUsesUsingsOfDeclaration()
+    {
+        // Arrange
+        const string source =
+            """
+            namespace Test.Defaults
+            {
+                public static class Values
+                {
+                    public const int Answer = 42;
+                }
+            }
+
+            namespace Test
+            {
+                using BunnyTail.XamlProperty;
+                using Microsoft.UI.Xaml;
+                using Test.Defaults;
+                using static Test.Defaults.Values;
+                using D = Test.Defaults.Values;
+
+                public partial class TestElement : DependencyObject
+                {
+                    [DependencyProperty(DefaultValueExpression = "Values.Answer")]
+                    public partial int First { get; set; }
+
+                    [DependencyProperty(DefaultValueExpression = "Answer")]
+                    public partial int Second { get; set; }
+
+                    [DependencyProperty(DefaultValueExpression = "D.Answer")]
+                    public partial int Third { get; set; }
+                }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void DefaultValueExpressionOfOtherTypeEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty(DefaultValueExpression = "\"text\"")]
+                public partial int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Equal(["BTXP0202"], problems);
+    }
+
+    [Fact]
+    public void FieldNameTakenByUserMemberEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                public static readonly string LevelProperty = "x";
+
+                [DependencyProperty]
+                public partial int Level { get; set; }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Equal(["BTXP0301"], problems);
+    }
+
+    [Fact]
+    public void SameNameOfPropertyAndAttachedPropertyEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty]
+                public partial int Level { get; set; }
+
+                [AttachedProperty]
+                public static partial int GetLevel(DependencyObject obj);
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Equal(["BTXP0301"], problems);
+    }
+
+    [Fact]
+    public void CallbackNamedLikeLambdaParameterIsCalled()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty(PropertyChanged = nameof(__e))]
+                public partial int Value { get; set; }
+
+            #pragma warning disable IDE1006
+                private void __e()
+                {
+                }
+            #pragma warning restore IDE1006
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void OverloadInDerivedTypeDoesNotHideBaseCallback()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public class BaseElement : DependencyObject
+            {
+                protected void OnValueChanged(int oldValue, int newValue)
+                {
+                }
+            }
+
+            public partial class TestElement : BaseElement
+            {
+                private void OnValueChanged(string reason)
+                {
+                }
+
+                [DependencyProperty(PropertyChanged = nameof(OnValueChanged))]
+                public partial int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void AttachedCallbackInBaseTypeIsResolved()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public class HostBase
+            {
+                protected static void OnLevelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+                {
+                }
+            }
+
+            public partial class Host : HostBase
+            {
+                [AttachedProperty(PropertyChanged = nameof(OnLevelChanged))]
+                public static partial int GetLevel(DependencyObject obj);
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void FileLocalContainingTypeEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            file partial class TestElement : DependencyObject
+            {
+                [DependencyProperty]
+                public partial int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        // A file-local type can not get the implementation from another file
+        Assert.Equal(["BTXP0101", "CS9248"], problems);
+    }
+
+    [Fact]
+    public void InvalidSetMethodGetsThrowingImplementation()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public static partial class Focus
+            {
+                [AttachedProperty]
+                public static partial bool GetSuppress(DependencyObject obj);
+
+                public static partial void SetSuppress(DependencyObject obj, int value);
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Equal(["BTXP0005"], problems);
+    }
+
+    [Fact]
+    public void RefReturnGetterGetsThrowingImplementation()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public static partial class Refs
+            {
+                [AttachedProperty]
+                public static partial ref int GetLevel(DependencyObject obj);
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Equal(["BTXP0004"], problems);
+    }
+
+    [Fact]
+    public void NullableAttachedTargetCompilesWithoutWarning()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public static partial class Labels
+            {
+                [AttachedProperty]
+                public static partial string GetText(DependencyObject? obj);
+
+                public static partial void SetText(DependencyObject? obj, string? value);
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void ObsoleteCallbackCompilesWithoutWarning()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty(PropertyChanged = nameof(OnValueChanged))]
+                public partial int Value { get; set; }
+
+                [System.Obsolete("old")]
+                private void OnValueChanged(int oldValue, int newValue)
+                {
+                }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void TypeNamesDifferingOnlyInCaseEmitDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using BunnyTail.XamlProperty;
+            using Microsoft.UI.Xaml;
+
+            namespace Test;
+
+            public partial class TestElement : DependencyObject
+            {
+                [DependencyProperty]
+                public partial int Value { get; set; }
+            }
+
+            public partial class Testelement : DependencyObject
+            {
+                [DependencyProperty]
+                public partial int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var problems = GeneratorTestHelper.GetProblemIds(source);
+
+        // Assert
+        Assert.Contains("BTXP0302", problems);
+        Assert.DoesNotContain("CS8785", problems);
+    }
+}
