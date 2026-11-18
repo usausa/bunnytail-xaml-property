@@ -8,7 +8,6 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <CsWinRTAotOptimizerEnabled>false</CsWinRTAotOptimizerEnabled>
     <RootNamespace>BunnyTail.XamlProperty</RootNamespace>
-    <CodeAnalysisRuleSet>..\Analyzers.ruleset</CodeAnalysisRuleSet>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
